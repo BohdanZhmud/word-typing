@@ -15,10 +15,9 @@ module Keyboard =
         let op =  if pressed then Set.add else Set.remove
         keysPressed <- op keyCode keysPressed
         (null)
-    
+
     let keyPresed (s: string) =
         let c = Fable.Import.JS.String.Create(s).charCodeAt(0.)
-        if (not (Set.isEmpty keysPressed)) then printfn "string: %s c: %f %A" s c keysPressed
         keysPressed.Contains(int(c))
 
     let anyKeyPressed () = not keysPressed.IsEmpty
