@@ -70,8 +70,7 @@ let handleTyping words =
     let text = displayText word
     let increment = if Keyboard.keyPresed (text.ToUpperInvariant()) then 1 else 0
     let word' = { word with typedCounter = word.typedCounter + increment }
-    let words' = List.skip 1 words
-    List.append [word'] words'
+    word' :: (List.tail words)
 
 let drawText text color font x y =
   let centerX = getCenterPositionX x text
@@ -121,7 +120,7 @@ let rec render (w, h) game () =
     drawSuccess()
   | EndFail -> 
     Win.clear()
-    drawSuccess()
+    drawFail()
 
 let game = initFromStorage (w, h)
 render (w, h) game ()

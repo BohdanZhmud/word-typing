@@ -79,8 +79,8 @@ Target "Bundle" (fun _ ->
   CopyDir publicDir "src/Client/public" allFiles
 )
 
-let dockerUser = "safe-template"
-let dockerImageName = "safe-template"
+let dockerUser = "bohdanzhmud"
+let dockerImageName = "word-typing"
 let dockerFullName = sprintf "%s/%s" dockerUser dockerImageName
 
 Target "Docker" (fun _ ->
