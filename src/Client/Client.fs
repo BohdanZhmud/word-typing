@@ -16,16 +16,16 @@ type Word = {
   typedCounter: int
 }
 
-type Status =
-  | NotStarted
-  | Playing
-  | EndSuccess
-  | EndFail
-
 type GameState = {
   words: Word list
-  status: Status
+  initialWordsCount: int
 }
+
+type Game = 
+  | NotStarted
+  | Playing of GameState
+  | EndSuccess of GameState
+  | EndFail of GameState
 
 let random max min = Fable.Import.JS.Math.random() * (max - min) + min;
 
@@ -42,7 +42,7 @@ let initFromStorage (w, h) =
   let words' =
     words
     |> List.mapi (fun i word -> {word with y = 0. - float(i) * margin})
-  { words = words'; status = NotStarted }
+  { words = words'; initialWordsCount = List.length words }
 
 // taken from bulma css
 let blackColor = "#363636"
@@ -72,55 +72,70 @@ let handleTyping words =
     let word' = { word with typedCounter = word.typedCounter + increment }
     word' :: (List.tail words)
 
-let drawText text color font x y =
+let drawText text color x y =
   let centerX = getCenterPositionX x text
   Win.drawText text color font (centerX, y)
+
+let drawScore (w, h) game =
+  let passed = game.initialWordsCount - List.length game.words
+  let total = game.initialWordsCount
+  let text = sprintf "%i/%i" passed total
+  let y = fontSize * 2.;
+  let x = w - float(text.Length) * fontSize - fontSize * 5.
+  Win.drawText text blackColor font (x, y)
 
 let renderLoopInterval = int(1000. / 60.)
 
 let rec render (w, h) game () =
-  let handleNotStarted draw =
-    if Keyboard.anyKeyPressed()
-        then window.setTimeout(render(w, h) {game with status = Playing}, renderLoopInterval) |> ignore
-        else
-          Win.clear()
-          draw()
-          let game = initFromStorage (w, h)
-          window.setTimeout(render (w, h) game, renderLoopInterval) |> ignore
+  let scheduleRender game' = window.setTimeout(render (w, h) game', renderLoopInterval) |> ignore
 
-  let drawNotStarted () = drawText "Press any key to start" blackColor font (w/2.) (h/2.)
-  let drawSuccess () = drawText "Success. Press any key to start" "green" font (w/2.) (h/2.)
-  let drawFail () = drawText "Fail. Press any key to start" "red" font (w/2.) (h/2.)
+  let drawNotStarted () = drawText "Press any key to start" blackColor (w/2.) (h/2.)
+  let drawSuccess game () = 
+    drawText "Success. Press any key to start again" "green" (w/2.) (h/2.)
+    drawScore (w, h) game
+  let drawFail game () = 
+    drawText "Game over. Press any key to start again" "red" (w/2.) (h/2.)
+    drawScore (w, h) game
 
-  match game.status with
-  | NotStarted ->
-    handleNotStarted drawNotStarted
-  | Playing ->
+  let handleNotStarted draw game =
+    Win.clear()
+    draw()
+    if Keyboard.anyKeyPressed() 
+      then
+        Keyboard.clear()
+        let game = initFromStorage (w, h)
+        scheduleRender (Playing game)
+      else
+        scheduleRender game
+
+  match game with
+  | NotStarted -> handleNotStarted drawNotStarted game
+  | Playing game ->
     match game.words with
     | words when List.exists (fun x -> x.y > h) words ->
-      render (w, h) { game with status = EndFail } ()
+      Keyboard.clear()
+      scheduleRender (EndFail game)
     | _ ->
       let words =
         game.words
         |> handleTyping
         |> List.map move
         |> List.filter (fun x -> ((displayText x).Length <> 0))
+      let game' = { game with words = words }
       match words with
-        | [] -> render (w, h) { game with status = EndSuccess } ()
+        | [] ->
+          Keyboard.clear()
+          scheduleRender (EndSuccess game')
         | words ->
           Win.clear()
           List.iter (fun word ->
             let fontColor = color word
             let text = displayText word
-            drawText text fontColor font word.x word.y)
+            drawText text fontColor word.x word.y)
             words
-          window.setTimeout(render (w, h) { game with words = words }, renderLoopInterval) |> ignore
-  | EndSuccess -> 
-    Win.clear()
-    drawSuccess()
-  | EndFail -> 
-    Win.clear()
-    drawFail()
-
+          scheduleRender (Playing game')
+      drawScore (w, h) game
+  | EndSuccess game -> handleNotStarted (drawSuccess game) (EndSuccess game)
+  | EndFail game -> handleNotStarted (drawFail game) (EndFail game)
 let game = initFromStorage (w, h)
-render (w, h) game ()
+render (w, h) NotStarted ()

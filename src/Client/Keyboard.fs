@@ -25,3 +25,5 @@ module Keyboard =
     let init () =
       document.addEventListener_keydown(fun e -> update(e, true))
       document.addEventListener_keyup(fun e -> update(e, false))
+
+    let clear () = keysPressed <- Set.empty
