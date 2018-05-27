@@ -158,7 +158,7 @@ let update msg model =
 let endText model =
   match model with
   | EndSuccess game -> sprintf "Round %i successfully cleared. Press ENTER to get to next round." game.currentRound
-  | EndFail game -> sprintf "Round %i; Game over. Press ENTER to start again." game.currentRound
+  | EndFail game -> sprintf "Round %i. Game over. Press ENTER to start again." game.currentRound
   | NotStarted _ -> "Press ENTER to start."
   | _ -> ""
 
@@ -172,6 +172,7 @@ let containerStyle =
         FlexDirection "column"
     ]
 
+let startBtnId = "start-btn";
 let getRound game =
   match game with
   | NotStarted -> 1
@@ -184,8 +185,15 @@ let view (model : Game) (dispatch : Msg -> unit) =
       [ span [ ClassName "is-size-4" ] [
           str (endText model)
         ];
-       button [ ClassName "button is-success"; OnClick (fun _ -> dispatch (StartGame (getRound model))); HTMLAttr.Type "submit"] [str "Start"]]
+       button [ Id startBtnId; ClassName "button is-success"; OnClick (fun _ -> dispatch (StartGame (getRound model)))] [str "Start"]]
   | _ -> str ""
+
+document.addEventListener_keydown(fun e ->
+  let enter = 13.
+  if (e.keyCode = enter) then
+    let btn = document.getElementById(startBtnId)
+    btn.click()
+  )
 
 #if DEBUG
 open Elmish.Debug
