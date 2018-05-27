@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../Shared/Shared.fs" />
+    <Compile Include="Utils.fs" />
     <Compile Include="Win.fs" />
     <Compile Include="GameData.fs" />
     <Compile Include="Keyboard.fs" />

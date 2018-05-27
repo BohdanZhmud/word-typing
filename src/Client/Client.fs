@@ -1,13 +1,20 @@
 module Client
 
+open Elmish
+open Elmish.React
+
 open Win
 open Keyboard
 
 open Fable.Import.Browser
 open GameData
+open Utils
 
-let w, h = Win.dimensions()
-Keyboard.init()
+open Fable.Helpers.React
+open Fable.Helpers.React.Props
+
+open Fulma
+open Fable.PowerPack
 
 type Word = {
   x: float
@@ -21,20 +28,25 @@ type GameState = {
   initialWordsCount: int
 }
 
-type Game = 
+type Game =
   | NotStarted
   | Playing of GameState
   | EndSuccess of GameState
   | EndFail of GameState
 
-let random max min = Fable.Import.JS.Math.random() * (max - min) + min;
+type Msg =
+  | GameStarted of Game
+  | StartGame
+  | Finish of Game
 
 let fontSize = 30.
 let initFromStorage (w, h) =
   let words =
-    GameData.getWords()
+    GameData.firstRoundWords()
+    |> Utils.shuffleList
+    |> List.take 20
     |> List.map (fun x ->
-      let rand = random (w/3.) (2. * w / 3.)
+      let rand = Utils.random (w/3.) (2. * w / 3.)
       { x = rand; y  = 0. + fontSize; text = x; typedCounter = 0})
   let maxVisibleWords = 5.
   let margin = h / maxVisibleWords
@@ -86,30 +98,10 @@ let drawScore (w, h) game =
 
 let renderLoopInterval = int(1000. / 60.)
 
-let rec render (w, h) game () =
-  let scheduleRender game' = window.setTimeout(render (w, h) game', renderLoopInterval) |> ignore
-
-  let drawNotStarted () = drawText "Press any key to start" blackColor (w/2.) (h/2.)
-  let drawSuccess game () = 
-    drawText "Success. Press any key to start again" "green" (w/2.) (h/2.)
-    drawScore (w, h) game
-  let drawFail game () = 
-    drawText "Game over. Press any key to start again" "red" (w/2.) (h/2.)
-    drawScore (w, h) game
-
-  let handleNotStarted draw game =
-    Win.clear()
-    draw()
-    if Keyboard.anyKeyPressed() 
-      then
-        Keyboard.clear()
-        let game = initFromStorage (w, h)
-        scheduleRender (Playing game)
-      else
-        scheduleRender game
+let rec render (w, h) game dispatch () =
+  let scheduleRender game' = window.setTimeout(render (w, h) game' dispatch, renderLoopInterval) |> ignore
 
   match game with
-  | NotStarted -> handleNotStarted drawNotStarted game
   | Playing game ->
     match game.words with
     | words when List.exists (fun x -> x.y > h) words ->
@@ -135,7 +127,72 @@ let rec render (w, h) game () =
             words
           scheduleRender (Playing game')
       drawScore (w, h) game
-  | EndSuccess game -> handleNotStarted (drawSuccess game) (EndSuccess game)
-  | EndFail game -> handleNotStarted (drawFail game) (EndFail game)
-let game = initFromStorage (w, h)
-render (w, h) NotStarted ()
+  | EndSuccess game -> dispatch (Finish (EndSuccess game))
+  | EndFail game -> dispatch (Finish (EndSuccess game))
+  | NotStarted -> ()
+
+let w, h = Win.dimensions()
+do Keyboard.init()
+
+let timer initial =
+    let sub dispatch = 
+      do render (w, h) initial dispatch ()
+    Cmd.ofSub sub
+
+let init () : Game * Cmd<Msg> =
+  NotStarted, Cmd.none
+
+let update msg model =
+  match msg with
+  | GameStarted game -> game, Cmd.none
+  | StartGame ->
+    let sub dispatch =
+      let game = initFromStorage (w, h)
+      do render (w, h) (Playing game) dispatch ()
+      dispatch (GameStarted (Playing game))
+    model, Cmd.ofSub sub
+  | Finish game -> game, Cmd.none
+
+let endText model =
+  match model with
+  | EndSuccess _ -> "Success. Press ENTER to continue."
+  | EndFail _ -> "Fail. Press ENTER to start again."
+  | NotStarted _ -> "Press ENTER to start."
+  | _ -> ""
+
+let containerStyle = 
+    Style [
+        Width "100wh"
+        Height "100vh"
+        Display "flex"
+        JustifyContent "center"
+        AlignItems "center"
+        FlexDirection "column"
+    ]
+
+let view (model : Game) (dispatch : Msg -> unit) =
+  match model with
+  | EndSuccess _ | EndFail _ | NotStarted _ ->
+    div [containerStyle]
+      [ span [ ClassName "is-size-4" ] [
+          str (endText model)
+        ];
+       button [ ClassName "button is-success"; OnClick (fun _ -> dispatch StartGame); HTMLAttr.Type "submit"] [str "Start"]]
+  | _ -> str ""
+
+#if DEBUG
+open Elmish.Debug
+open Elmish.HMR
+#endif
+
+Program.mkProgram init update view
+|> Program.withSubscription timer
+#if DEBUG
+|> Program.withConsoleTrace
+|> Program.withHMR
+#endif
+|> Program.withReact "elmish-app"
+#if DEBUG
+|> Program.withDebugger
+#endif
+|> Program.run
