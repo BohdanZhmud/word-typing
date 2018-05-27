@@ -1,19 +1,28 @@
-open System.IO
-
 open Microsoft.AspNetCore.Builder
 open Microsoft.Extensions.DependencyInjection
 open Giraffe
 open Saturn
 
 open Giraffe.Serialization
+open Redis
+open Shared
+open System.IO
 
 let publicPath = Path.GetFullPath "../Client/public"
 let port = 8085us
 
 let webApp = scope {
-  get "/test" (fun next ctx ->
+  post "/rating" (fun next ctx ->
     task {
-      return! Successful.OK 3 next ctx
+      let! score = ctx.BindModelAsync<Score>()
+      do! setRating score.name score.value
+      return! text "" next ctx
+    })
+
+  get "/rating" (fun next ctx ->
+    task {
+      let! rating = getRating 10.
+      return! ctx.WriteJsonAsync rating
     })
 }
 
