@@ -13,7 +13,6 @@ open Utils
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
-open Fulma
 open Fable.PowerPack
 
 type Word = {
@@ -26,6 +25,7 @@ type Word = {
 type GameState = {
   words: Word list
   initialWordsCount: int
+  currentRound: int
 }
 
 type Game =
@@ -36,15 +36,13 @@ type Game =
 
 type Msg =
   | GameStarted of Game
-  | StartGame
+  | StartGame of int
   | Finish of Game
 
 let fontSize = 30.
-let initFromStorage (w, h) =
+let initFromStorage (w, h) r =
   let words =
-    GameData.firstRoundWords()
-    |> Utils.shuffleList
-    |> List.take 20
+    GameData.getWords r
     |> List.map (fun x ->
       let rand = Utils.random (w/3.) (2. * w / 3.)
       { x = rand; y  = 0. + fontSize; text = x; typedCounter = 0})
@@ -54,7 +52,7 @@ let initFromStorage (w, h) =
   let words' =
     words
     |> List.mapi (fun i word -> {word with y = 0. - float(i) * margin})
-  { words = words'; initialWordsCount = List.length words }
+  { words = words'; initialWordsCount = List.length words; currentRound = r }
 
 // taken from bulma css
 let blackColor = "#363636"
@@ -94,7 +92,11 @@ let drawScore (w, h) game =
   let text = sprintf "%i/%i" passed total
   let y = fontSize * 2.;
   let x = w - float(text.Length) * fontSize - fontSize * 5.
-  Win.drawText text blackColor font (x, y)
+  do Win.drawText text blackColor font (x, y)
+
+  let text' = sprintf "Round: %i" game.currentRound
+  let x' = fontSize * 5. + float(text'.Length)
+  do Win.drawText text' blackColor font (x', y)
 
 let renderLoopInterval = int(1000. / 60.)
 
@@ -128,7 +130,7 @@ let rec render (w, h) game dispatch () =
           scheduleRender (Playing game')
       drawScore (w, h) game
   | EndSuccess game -> dispatch (Finish (EndSuccess game))
-  | EndFail game -> dispatch (Finish (EndSuccess game))
+  | EndFail game -> dispatch (Finish (EndFail game))
   | NotStarted -> ()
 
 let w, h = Win.dimensions()
@@ -145,9 +147,9 @@ let init () : Game * Cmd<Msg> =
 let update msg model =
   match msg with
   | GameStarted game -> game, Cmd.none
-  | StartGame ->
+  | StartGame r ->
     let sub dispatch =
-      let game = initFromStorage (w, h)
+      let game = initFromStorage (w, h) r
       do render (w, h) (Playing game) dispatch ()
       dispatch (GameStarted (Playing game))
     model, Cmd.ofSub sub
@@ -155,8 +157,8 @@ let update msg model =
 
 let endText model =
   match model with
-  | EndSuccess _ -> "Success. Press ENTER to continue."
-  | EndFail _ -> "Fail. Press ENTER to start again."
+  | EndSuccess game -> sprintf "Round %i successfully cleared. Press ENTER to get to next round." game.currentRound
+  | EndFail game -> sprintf "Round %i; Game over. Press ENTER to start again." game.currentRound
   | NotStarted _ -> "Press ENTER to start."
   | _ -> ""
 
@@ -170,6 +172,11 @@ let containerStyle =
         FlexDirection "column"
     ]
 
+let getRound game =
+  match game with
+  | NotStarted -> 1
+  | EndSuccess game -> game.currentRound + 1
+  | Playing game | EndFail game -> game.currentRound
 let view (model : Game) (dispatch : Msg -> unit) =
   match model with
   | EndSuccess _ | EndFail _ | NotStarted _ ->
@@ -177,7 +184,7 @@ let view (model : Game) (dispatch : Msg -> unit) =
       [ span [ ClassName "is-size-4" ] [
           str (endText model)
         ];
-       button [ ClassName "button is-success"; OnClick (fun _ -> dispatch StartGame); HTMLAttr.Type "submit"] [str "Start"]]
+       button [ ClassName "button is-success"; OnClick (fun _ -> dispatch (StartGame (getRound model))); HTMLAttr.Type "submit"] [str "Start"]]
   | _ -> str ""
 
 #if DEBUG
