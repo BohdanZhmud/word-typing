@@ -8,6 +8,10 @@
     <Compile Include="Win.fs" />
     <Compile Include="GameData.fs" />
     <Compile Include="Keyboard.fs" />
+    <Compile Include="Game.fs" />
+    <Compile Include="User.fs" />
+    <Compile Include="Rating.fs" />
+    <Compile Include="Main.fs" />
     <Compile Include="Client.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

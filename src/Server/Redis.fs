@@ -6,14 +6,21 @@ open StackExchange.Redis
 open Giraffe.Common
 
 let client = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable "redis-connection-string")
-let db = client.GetDatabase()
 
-let setRating (userName: string) rating = task {
-    let entry = SortedSetEntry(RedisValue.op_Implicit(userName), rating)
-    db.SortedSetAddAsync(RedisKey.op_Implicit("rating:sortedSet"), [|entry|]) |> ignore
+let private db = client.GetDatabase()
+
+let private sortedSetKey = RedisKey.op_Implicit("rating:sortedSet")
+
+let setRating (userId: string) rating = task {
+    let entry = SortedSetEntry(RedisValue.op_Implicit(userId), rating)
+    return! db.SortedSetAddAsync(sortedSetKey, [|entry|])
 }
 
 let getRating top = task {
-    let! values = db.SortedSetRangeByScoreWithScoresAsync (RedisKey.op_Implicit("rating:sortedSet"), 0., top)
+    let! values = db.SortedSetRangeByScoreWithScoresAsync (sortedSetKey, skip = 0L, take = top)
     return values |> Array.map (fun x -> { name = x.Element.ToString(); value = x.Score })
+}
+
+let getUserRating (userId: string) = task {
+    return! db.SortedSetScoreAsync(sortedSetKey, RedisValue.op_Implicit(userId))
 }

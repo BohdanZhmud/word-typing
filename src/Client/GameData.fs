@@ -1,8 +1,4 @@
 module GameData
-
-module GameData =
-    open Utils
-
     let private words = ["abra"; "new"; "gum"; "dot"; "hot"; "text"; "bla"; "dzen"; "linux"; "google"; "stop";
     "aristotle"; "pattern"; "flight"; "fresh"; "orangutang"; "field"; "favor"; "dinner";
     "cardinal"; "division"; "lizard"; "ancestor"; "dent"; "afternoon"; "vulture"; "grape";

@@ -7,22 +7,27 @@ open Giraffe.Serialization
 open Redis
 open Shared
 open System.IO
+open System
 
 let publicPath = Path.GetFullPath "../Client/public"
 let port = 8085us
 
 let webApp = scope {
-  post "/rating" (fun next ctx ->
+  get "/api/rating" (fun next ctx ->
     task {
-      let! score = ctx.BindModelAsync<Score>()
-      do! setRating score.name score.value
-      return! text "" next ctx
+      let! rating = getRating 10L
+      return! json rating next ctx
     })
 
-  get "/rating" (fun next ctx ->
+  post "/api/rating" (fun next ctx ->
     task {
-      let! rating = getRating 10.
-      return! ctx.WriteJsonAsync rating
+      let! score = ctx.BindModelAsync<Score>()
+      let! currentScore = getUserRating score.name
+      if currentScore.GetValueOrDefault() < score.value
+        then 
+          let! _ = setRating score.name score.value
+          ()
+      return! Successful.OK None next ctx
     })
 }
 

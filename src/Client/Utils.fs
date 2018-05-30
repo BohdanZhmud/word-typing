@@ -1,6 +1,4 @@
 module Utils
-
-module Utils =
     let rand = new System.Random()
 
     let random max min = Fable.Import.JS.Math.random() * (max - min) + min;
@@ -19,3 +17,7 @@ module Utils =
         let x = List.toArray l
         do shuffle x
         Array.toList x
+
+    let toString (x: 'a) = x.ToString()
+
+    let increment i = i + 1
