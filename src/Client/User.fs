@@ -14,7 +14,7 @@ module User
     let generateRandomId () = Constants.guestName + string delimiter + string (System.Guid.NewGuid())
 
     let getDisplayName (id: string) = 
-      if id.Contains(toString delimiter) && id.Split(delimiter).[0] = Constants.guestName
+      if id.Contains(string delimiter) && id.Split(delimiter).[0] = Constants.guestName
       then Constants.guestName
       else id
 

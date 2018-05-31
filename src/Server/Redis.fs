@@ -5,7 +5,7 @@ open Shared
 open StackExchange.Redis
 open Giraffe.Common
 
-let client = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable "redis-connection-string")
+let client = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable "redis_connection_string")
 
 let private db = client.GetDatabase()
 

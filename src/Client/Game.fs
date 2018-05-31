@@ -3,7 +3,6 @@ module Game
 open Elmish
 
 open Win
-open Keyboard
 
 open Fable.Import.Browser
 open GameData

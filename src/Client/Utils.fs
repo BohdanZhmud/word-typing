@@ -18,6 +18,4 @@ module Utils
         do shuffle x
         Array.toList x
 
-    let toString (x: 'a) = x.ToString()
-
     let increment i = i + 1

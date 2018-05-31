@@ -7,7 +7,6 @@ open Giraffe.Serialization
 open Redis
 open Shared
 open System.IO
-open System
 
 let publicPath = Path.GetFullPath "../Client/public"
 let port = 8085us

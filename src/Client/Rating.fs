@@ -6,7 +6,6 @@ open Fable.PowerPack
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 open Utils
-open System
 
 type Model = Score list option
 
@@ -54,9 +53,9 @@ let view (model : Model) (userModel: User.Model) (dispatch : Msg -> unit) =
           tbody []
             (rating |> List.sortByDescending (fun x -> x.value) |> List.mapi (fun i x -> 
                 tr [] [
-                   th [] [ str (i |> increment |> toString)]
+                   th [] [ str (i |> increment |> string)]
                    td [] [ str userModel.displayName ]
-                   td [] [ str (int(x.value).ToString()) ]
+                   td [] [ str (string (int(x.value))) ]
                 ]))
         ]
     ]
