@@ -25,6 +25,7 @@ type GameState = {
   initialWordsCount: int
   currentRound: int
   score: float
+  id: string
 }
 
 type Game =
@@ -53,7 +54,7 @@ let initFromStorage (w, h) r score =
   let words' =
     words
     |> List.mapi (fun i word -> {word with y = 0. - float(i) * margin})
-  { words = words'; initialWordsCount = List.length words; currentRound = r; score = score}
+  { words = words'; initialWordsCount = List.length words; currentRound = r; score = score; id = string (System.Guid.NewGuid())}
 
 // taken from bulma css
 let blackColor = "#363636"

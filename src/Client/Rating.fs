@@ -12,7 +12,7 @@ type Model = Score list option
 type Msg =
     | Loading
     | Loaded of Result<Score list, exn>
-    | StoreResult of float * string
+    | StoreResult of float * string * string
 
 let init () : Model * Cmd<Msg> =
   None, Cmd.ofMsg Loading
@@ -28,10 +28,10 @@ let update (msg : Msg) (model : Model) : Model * Cmd<Msg> =
           (Ok >> Loaded)
           (Error >> Loaded)
       None, cmd
-    | _, StoreResult (res, userId) when res > 0. ->
+    | _, StoreResult (res, userId, gameId) when res > 0. ->
       let cmd =
         Cmd.ofPromise
-          (Fetch.postRecord "api/rating" { name = userId; value = res })
+          (Fetch.postRecord "api/rating" { name = userId; value = res; gameId = gameId })
           []
           (fun _ -> Loading)
           (Error >> Loaded)

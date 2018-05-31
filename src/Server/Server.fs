@@ -24,7 +24,7 @@ let webApp = scope {
       let! currentScore = getUserRating score.name
       if currentScore.GetValueOrDefault() < score.value
         then 
-          let! _ = setRating score.name score.value
+          let! _ = setRating score.name score.gameId score.value 
           ()
       return! Successful.OK None next ctx
     })
