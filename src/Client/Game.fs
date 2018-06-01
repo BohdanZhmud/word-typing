@@ -159,11 +159,13 @@ let update msg model =
   | GameStarted game -> game, Cmd.none
   | Finish gameState -> gameState, Cmd.none
 
-let endText model =
+let getText model =
   match model with
   | EndSuccess game -> sprintf "Round %i successfully cleared. Current score: %i. Press ENTER to get to next round." game.currentRound (int(game.score))
   | EndFail game -> sprintf "Round %i. Game over. Current score: %i. Press ENTER to start again." game.currentRound (int(game.score))
   | NotStarted _ -> "Press ENTER to start."
+  | Loading -> "Loading game..."
+  | Loaded (Error _) -> "Failed to load game. Please try again."
   | _ -> ""
 
 let containerStyle = 
@@ -182,17 +184,17 @@ let getRound game =
   | _ -> 1
 let getScore game =
   match game with
-
   | Playing game | EndSuccess game -> game.score
   | _ -> 0.
+
 let view (model : Game) (dispatch : Msg -> unit) =
   let round = getRound model
   let score = getScore model
   match model with
-  | EndSuccess _ | EndFail _ | NotStarted _ ->
+  | EndSuccess _ | EndFail _ | NotStarted _ | Loading | Loaded (Error _)->
     div [containerStyle]
       [ span [ Class "is-size-4" ] [
-          str (endText model)
+          str (getText model)
         ];
        button [ Id startBtnId; Class "button is-success"; OnClick (fun _ -> dispatch (LoadGame (round, score)))] [str "Start"]]
   | _ -> str ""
