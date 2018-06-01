@@ -30,7 +30,7 @@ let update msg model : Model * Cmd<Msg> =
   match msg with
   | GameMsg msg' ->
     let res, cmd = Game.update msg' model.game
-    let cmd' = 
+    let cmd' =
       match msg' with
       | Game.Finish game ->
         match game with

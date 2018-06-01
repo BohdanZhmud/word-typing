@@ -4,7 +4,6 @@ open Giraffe
 open Saturn
 
 open Giraffe.Serialization
-open Redis
 open Shared
 open System.IO
 
@@ -14,20 +13,23 @@ let port = 8085us
 let webApp = scope {
   get "/api/rating" (fun next ctx ->
     task {
-      let! rating = getRating 10L
+      let! rating = Game.getRating
       return! json rating next ctx
     })
 
   post "/api/rating" (fun next ctx ->
     task {
       let! score = ctx.BindModelAsync<Score>()
-      let! currentScore = getUserRating score.name
-      if currentScore.GetValueOrDefault() < score.value
-        then 
-          let! _ = setRating score.name score.gameId score.value 
-          ()
+      do! Game.storeRating score
       return! Successful.OK None next ctx
     })
+
+  getf "/api/words/%i" (fun round next ctx ->
+    task {
+      let! words = Game.getWords round
+      return! json words next ctx
+    }
+  )
 }
 
 let configureSerialization (services:IServiceCollection) =

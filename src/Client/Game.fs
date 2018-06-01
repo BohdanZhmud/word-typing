@@ -5,7 +5,6 @@ open Elmish
 open Win
 
 open Fable.Import.Browser
-open GameData
 open Utils
 
 open Fable.Helpers.React
@@ -30,31 +29,21 @@ type GameState = {
 
 type Game =
   | NotStarted
+  | Loading
+  | Loaded of Result<string list, exn>
   | Playing of GameState
   | EndSuccess of GameState
   | EndFail of GameState
 
 type Msg =
+  | LoadGame of int * float
+  | StartGame of Result<GameState, exn>
   | GameStarted of Game
-  | StartGame of int * float
   | Finish of Game
 
 type Model = Game
 
 let fontSize = 30.
-let initFromStorage (w, h) r score =
-  let words =
-    getWords r
-    |> List.map (fun x ->
-      let rand = random (w/3.) (2. * w / 3.)
-      { x = rand; y  = 0. + fontSize; text = x; typedCounter = 0})
-  let maxVisibleWords = 5.
-  let margin = h / maxVisibleWords
-
-  let words' =
-    words
-    |> List.mapi (fun i word -> {word with y = 0. - float(i) * margin})
-  { words = words'; initialWordsCount = List.length words; currentRound = r; score = score; id = string (System.Guid.NewGuid())}
 
 // taken from bulma css
 let blackColor = "#363636"
@@ -136,7 +125,7 @@ let rec render (w, h) game dispatch () =
       drawScore (w, h) game
   | EndSuccess game -> dispatch (Finish (EndSuccess game))
   | EndFail game -> dispatch (Finish (EndFail game))
-  | NotStarted -> ()
+  | _ -> ()
 
 let w, h = Win.dimensions()
 do Keyboard.init()
@@ -144,15 +133,30 @@ do Keyboard.init()
 let init () : Model * Cmd<Msg> =
   NotStarted, Cmd.none
 
+let initGame (words: string list) r score =
+  let words' = words |> List.map (fun x ->
+          let rand = random (w/3.) (2. * w / 3.)
+          { x = rand; y  = 0. + fontSize; text = x; typedCounter = 0})
+  let maxVisibleWords = 5.
+  let margin = h / maxVisibleWords
+
+  let words'' = words' |> List.mapi (fun i word -> {word with y = 0. - float(i) * margin})
+  { words = words''; initialWordsCount = List.length words; currentRound = r; score = score; id = string (System.Guid.NewGuid()) }
+
 let update msg model =
   match msg with
-  | GameStarted game -> game, Cmd.none
-  | StartGame (r, s) ->
+  | LoadGame (r, s) ->
+    let promise _ = 
+      Fetch.fetchAs<string list>(sprintf "/api/words/%i" r) []
+      |> Promise.map (fun x -> initGame x r s)
+    model, Cmd.ofPromise promise [] (Ok >> StartGame) (Error >> StartGame)
+  | StartGame (Ok game) ->
     let sub dispatch =
-      let game = initFromStorage (w, h) r s
       do render (w, h) (Playing game) dispatch ()
-      dispatch (GameStarted (Playing game))
-    model, Cmd.ofSub sub
+    Playing game, Cmd.ofSub sub
+  | StartGame (Error _) ->
+    model, Cmd.none
+  | GameStarted game -> game, Cmd.none
   | Finish gameState -> gameState, Cmd.none
 
 let endText model =
@@ -173,13 +177,14 @@ let containerStyle =
 let startBtnId = "start-btn";
 let getRound game =
   match game with
-  | NotStarted | EndFail _-> 1
   | EndSuccess game -> game.currentRound + 1
   | Playing game -> game.currentRound
+  | _ -> 1
 let getScore game =
   match game with
-  | NotStarted | EndFail _ -> 0.
+
   | Playing game | EndSuccess game -> game.score
+  | _ -> 0.
 let view (model : Game) (dispatch : Msg -> unit) =
   let round = getRound model
   let score = getScore model
@@ -189,7 +194,7 @@ let view (model : Game) (dispatch : Msg -> unit) =
       [ span [ Class "is-size-4" ] [
           str (endText model)
         ];
-       button [ Id startBtnId; Class "button is-success"; OnClick (fun _ -> dispatch (StartGame (round, score)))] [str "Start"]]
+       button [ Id startBtnId; Class "button is-success"; OnClick (fun _ -> dispatch (LoadGame (round, score)))] [str "Start"]]
   | _ -> str ""
 
 document.addEventListener_keydown(fun e ->

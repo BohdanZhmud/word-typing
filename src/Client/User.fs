@@ -1,8 +1,7 @@
 module User
     open Elmish
     open Shared
-    open Utils
-
+    
     type Model = {
         id: string
         displayName: string

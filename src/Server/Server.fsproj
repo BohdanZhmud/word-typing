@@ -6,6 +6,7 @@
   <ItemGroup>
     <Compile Include="../Shared/Shared.fs" />
     <Compile Include="Redis.fs" />
+    <Compile Include="Game.fs" />
     <Compile Include="Server.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

@@ -4,13 +4,13 @@ open System
 open Shared
 open StackExchange.Redis
 open Giraffe.Common
-open System.Reflection.Emit
 
 let client = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable "redis_connection_string")
 
 let private db = client.GetDatabase()
 
-let private sortedSetKey = RedisKey.op_Implicit("rating:sortedSet")
+let private getKey (key: string) = RedisKey.op_Implicit key
+let private sortedSetKey = getKey "rating:sortedSet"
 let private generateKey userId gameId = sprintf "%s:%s" userId gameId
 
 let setRating (userId: string) gameId rating = task {
@@ -35,3 +35,15 @@ let getRating top = task {
 let getUserRating (userId: string) = task {
     return! db.SortedSetScoreAsync(sortedSetKey, RedisValue.op_Implicit(userId))
 }
+
+let private getRandomSetEntries setKey count = task {
+    let key = getKey setKey 
+    let! values = db.SetRandomMembersAsync(key, count)
+    return values |> Array.map (fun x -> x.ToString()) |> Array.toList
+}
+
+let getThreeLetterWords count = getRandomSetEntries "threeLetterWords:set" count
+let getFourLetterWords count = getRandomSetEntries "fourLetterWords:set" count
+let getFiveLetterWords count = getRandomSetEntries "fiveLetterWords:set" count
+let getSixLetterWords count = getRandomSetEntries "sixLetterWords:set" count
+let getSevenLetterWords count = getRandomSetEntries "sevenLetterWords:set" count
