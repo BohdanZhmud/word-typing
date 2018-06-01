@@ -2,6 +2,7 @@ module Redis
 
 open System
 open Shared
+open Types
 open StackExchange.Redis
 open Giraffe.Common
 
@@ -10,6 +11,8 @@ let client = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable "r
 let private db = client.GetDatabase()
 
 let private getKey (key: string) = RedisKey.op_Implicit key
+let private getValue (value: string) = RedisValue.op_Implicit value
+
 let private sortedSetKey = getKey "rating:sortedSet"
 let private generateKey userId gameId = sprintf "%s:%s" userId gameId
 
@@ -42,8 +45,19 @@ let private getRandomSetEntries setKey count = task {
     return values |> Array.map (fun x -> x.ToString()) |> Array.toList
 }
 
-let getThreeLetterWords count = getRandomSetEntries "threeLetterWords:set" count
-let getFourLetterWords count = getRandomSetEntries "fourLetterWords:set" count
-let getFiveLetterWords count = getRandomSetEntries "fiveLetterWords:set" count
-let getSixLetterWords count = getRandomSetEntries "sixLetterWords:set" count
-let getSevenLetterWords count = getRandomSetEntries "sevenLetterWords:set" count
+let threeLetterSetKey = "threeLetterWords:set"
+let fourLetterSetKey = "fourLetterWords:set"
+let fiveLetterSetKey = "fiveLetterWords:set"
+let sixLetterSetKey = "sixLetterWords:set"
+let sevenLetterSetKey = "sevenLetterWords:set"
+
+
+let getThreeLetterWords count = getRandomSetEntries threeLetterSetKey count
+let getFourLetterWords count = getRandomSetEntries fourLetterSetKey count
+let getFiveLetterWords count = getRandomSetEntries fiveLetterSetKey count
+let getSixLetterWords count = getRandomSetEntries sixLetterSetKey count
+let getSevenLetterWords count = getRandomSetEntries sevenLetterSetKey count
+
+let validate key words =
+    let isInvalid = words |> List.exists (fun x -> not (db.SetContains((getKey key), (getValue x))))
+    if isInvalid then NotValid else Valid

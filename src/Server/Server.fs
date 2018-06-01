@@ -5,6 +5,7 @@ open Saturn
 
 open Giraffe.Serialization
 open Shared
+open Types
 open System.IO
 
 let publicPath = Path.GetFullPath "../Client/public"
@@ -19,9 +20,12 @@ let webApp = scope {
 
   post "/api/rating" (fun next ctx ->
     task {
-      let! score = ctx.BindModelAsync<Score>()
-      do! Game.storeRating score
-      return! Successful.OK None next ctx
+      let! gr = ctx.BindModelAsync<GameReplay>()
+      let! validationResult = Game.storeRating gr
+      return! 
+        match validationResult with
+        | Valid -> Successful.OK None next ctx
+        | NotValid -> RequestErrors.BAD_REQUEST None next ctx
     })
 
   getf "/api/words/%i" (fun round next ctx ->

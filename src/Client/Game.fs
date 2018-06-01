@@ -20,8 +20,9 @@ type Word = {
 }
 
 type GameState = {
-  words: Word list
+  initialWords: string list
   initialWordsCount: int
+  words: Word list
   currentRound: int
   score: float
   id: string
@@ -141,7 +142,14 @@ let initGame (words: string list) r score =
   let margin = h / maxVisibleWords
 
   let words'' = words' |> List.mapi (fun i word -> {word with y = 0. - float(i) * margin})
-  { words = words''; initialWordsCount = List.length words; currentRound = r; score = score; id = string (System.Guid.NewGuid()) }
+  { 
+    words = words''
+    initialWords = words
+    initialWordsCount = List.length words
+    currentRound = r
+    score = score
+    id = string (System.Guid.NewGuid())
+  }
 
 let update msg model =
   match msg with

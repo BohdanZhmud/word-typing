@@ -35,7 +35,10 @@ let update msg model : Model * Cmd<Msg> =
       | Game.Finish game ->
         match game with
         | Game.EndSuccess game' | Game.EndFail game' ->
-          let storeResultCmd = Cmd.ofMsg (Rating.StoreResult (game'.score, model.user.id, game'.id))
+          let storeResultCmd = Cmd.ofMsg (Rating.StoreResult { 
+              words = game'.initialWords
+              round = game'.currentRound
+              score = { name = model.user.id; value = game'.score; gameId = game'.id } })
           Cmd.map RatingMsg storeResultCmd
         | _ -> Cmd.none
       | _ -> Cmd.none
