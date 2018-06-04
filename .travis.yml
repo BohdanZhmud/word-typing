@@ -2,7 +2,7 @@ language: csharp
 mono: 
   - latest
 sudo: required
-dotnet: 2.1.0
+dotnet: 2.1
 node_js:
   - "8.9.1"
 script:
