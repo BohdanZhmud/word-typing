@@ -47,12 +47,12 @@ let configureApp (app:IApplicationBuilder) =
 
 let app = application {
     url ("http://0.0.0.0:" + port.ToString() + "/")
+    use_gzip
     router webApp
     app_config configureApp
     memory_cache
     use_static publicPath
     service_config configureSerialization
-    use_gzip
 }
 
 run app
