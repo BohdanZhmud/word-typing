@@ -1,0 +1,12 @@
+language: csharp
+mono: 
+  - latest
+sudo: required
+dotnet: 2.1.0
+node_js:
+  - "8.9.1"
+script:
+  - chmod +x build.sh
+  - npm install yarn -g
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - ./build.sh Docker
