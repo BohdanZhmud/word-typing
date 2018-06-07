@@ -4,6 +4,8 @@ open Shared
 open Types
 open Redis
 open Giraffe.Common
+open Saturn
+open Giraffe
 
 let getWords round =
     if (round < 1) then failwith (sprintf "incorrect round: %i" round)
@@ -35,4 +37,13 @@ let storeRating gameReplay = task {
                 Valid
             | NotValid -> NotValid
         | false -> Valid
+}
+
+let gameRouter = scope {
+  getf "/words/%i" (fun round next ctx ->
+    task {
+      let! words = getWords round
+      return! Successful.OK words next ctx
+    }
+  )
 }

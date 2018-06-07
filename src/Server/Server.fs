@@ -4,36 +4,16 @@ open Giraffe
 open Saturn
 
 open Giraffe.Serialization
-open Shared
-open Types
 open System.IO
+open Rating
+open Game
 
 let publicPath = Path.GetFullPath "../Client/public"
 let port = 8085us
 
 let webApp = scope {
-  get "/api/rating" (fun next ctx ->
-    task {
-      let! rating = Game.getRating
-      return! json rating next ctx
-    })
-
-  post "/api/rating" (fun next ctx ->
-    task {
-      let! gr = ctx.BindModelAsync<GameReplay>()
-      let! validationResult = Game.storeRating gr
-      return! 
-        match validationResult with
-        | Valid -> Successful.OK None next ctx
-        | NotValid -> RequestErrors.BAD_REQUEST None next ctx
-    })
-
-  getf "/api/words/%i" (fun round next ctx ->
-    task {
-      let! words = Game.getWords round
-      return! json words next ctx
-    }
-  )
+  forward "/api" ratingRouter
+  forward "/api" gameRouter
 }
 
 let configureSerialization (services:IServiceCollection) =
@@ -53,6 +33,6 @@ let app = application {
     memory_cache
     use_static publicPath
     service_config configureSerialization
-}
+} 
 
 run app
