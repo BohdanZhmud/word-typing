@@ -2,9 +2,10 @@ module Redis
 
 open System
 open Shared
-open Types
+open Validation
 open StackExchange.Redis
 open Giraffe.Common
+open System.Threading.Tasks
 
 let client = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable "redis_connection_string")
 
@@ -58,6 +59,8 @@ let getFiveLetterWords count = getRandomSetEntries fiveLetterSetKey count
 let getSixLetterWords count = getRandomSetEntries sixLetterSetKey count
 let getSevenLetterWords count = getRandomSetEntries sevenLetterSetKey count
 
-let validate key words =
-    let isInvalid = words |> List.exists (fun x -> not (db.SetContains((getKey key), (getValue x))))
-    if isInvalid then NotValid else Valid
+let validate key words = task {
+    let tasks = words |> List.map (fun x -> db.SetContainsAsync((getKey key), (getValue x)))
+    let! results = Task.WhenAll tasks
+    return if results |> Array.contains true then Valid else NotValid
+}

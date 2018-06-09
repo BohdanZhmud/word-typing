@@ -1,11 +1,12 @@
 module Game
 
 open Shared
-open Types
+open Validation
 open Redis
 open Giraffe.Common
 open Saturn
 open Giraffe
+open System.Threading.Tasks
 
 let getWords round =
     if (round < 1) then failwith (sprintf "incorrect round: %i" round)
@@ -28,15 +29,14 @@ let getRating = Redis.getRating 10L
 let storeRating gameReplay = task {
     let score = gameReplay.score
     let! currentScore = Redis.getUserRating score.name
-    return 
+    return!
         match currentScore.GetValueOrDefault() < score.value with
-        | true ->
-            match validateReplay gameReplay with
-            | Valid ->
-                let _ = Redis.setRating score.name score.gameId score.value
-                Valid
-            | NotValid -> NotValid
-        | false -> Valid
+        | true -> validateReplay gameReplay |> Validation.bindT (fun _ ->
+            task {
+                let! _ = Redis.setRating score.name score.gameId score.value
+                return Valid
+            })
+        | false -> Task.FromResult Valid
 }
 
 let gameRouter = scope {

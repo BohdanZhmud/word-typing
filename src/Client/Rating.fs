@@ -59,4 +59,3 @@ let view (model : Model) (userModel: User.Model) (dispatch : Msg -> unit) =
                 ]))
         ]
     ]
-    

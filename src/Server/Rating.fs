@@ -4,7 +4,7 @@ open Giraffe
 open Saturn
 
 open Shared
-open Types
+open Validation
 
 let ratingRouter = scope {
   get "/rating" (fun next ctx ->
