@@ -10,6 +10,9 @@ let bindT f vT = task {
     let! v = vT
     return! 
         match v with
-        | NotValid -> Task.FromResult NotValid
+        | NotValid -> 
+            task {
+                return NotValid
+            }
         | _ -> f v
 }

@@ -6,7 +6,6 @@ open Redis
 open Giraffe.Common
 open Saturn
 open Giraffe
-open System.Threading.Tasks
 
 let getWords round =
     if (round < 1) then failwith (sprintf "incorrect round: %i" round)
@@ -36,7 +35,10 @@ let storeRating gameReplay = task {
                 let! _ = Redis.setRating score.name score.gameId score.value
                 return Valid
             })
-        | false -> Task.FromResult Valid
+        | false -> 
+            task {
+                return Valid
+            }
 }
 
 let gameRouter = scope {
