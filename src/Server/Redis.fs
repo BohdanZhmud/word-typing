@@ -61,6 +61,6 @@ let getSevenLetterWords count = getRandomSetEntries sevenLetterSetKey count
 
 let validate key words = task {
     let tasks = words |> List.map (fun x -> db.SetContainsAsync((getKey key), (getValue x)))
-    let! results = Task.WhenAll tasks
-    return if results |> Array.contains true then Valid else NotValid
+    let! results =  Task.WhenAll tasks
+    return if results |> Array.contains false then NotValid else Valid
 }
