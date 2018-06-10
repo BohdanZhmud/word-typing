@@ -86,7 +86,7 @@ let getRound round = task {
 let private validateReplay (gameReplay: GameReplay) =
     validate gameReplay.words (getRoundWorsSetKey gameReplay.round)
 
-let getRating = Redis.getRating 10L
+let getRating () = Redis.getRating 10L
 
 let storeRating gameReplay = task {
     let score = gameReplay.score
@@ -114,7 +114,7 @@ let gameRouter = scope {
 
   get "/rating" (fun next ctx ->
     task {
-      let! rating = getRating
+      let! rating = getRating()
       return! Successful.OK rating next ctx
     })
 
