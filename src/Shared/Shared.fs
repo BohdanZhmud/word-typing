@@ -12,5 +12,12 @@ type GameReplay = {
     round: int
 }
 
+type Round = {
+    words: string list
+    framesPerSecond: int
+    speed: float
+    number: int
+}
+
 module Constants =
     let guestName = "Guest"

@@ -4,14 +4,12 @@ open Saturn
 
 open Giraffe.Serialization
 open System.IO
-open Rating
 open Game
 
 let publicPath = Path.GetFullPath "../Client/public"
 let port = 8085us
 
 let webApp = scope {
-  forward "/api" ratingRouter
   forward "/api" gameRouter
 }
 
@@ -32,6 +30,6 @@ let app = application {
     memory_cache
     use_static publicPath
     service_config configureSerialization
-} 
+}
 
 run app

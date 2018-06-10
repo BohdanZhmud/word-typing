@@ -17,10 +17,9 @@ let private getValue (value: string) = RedisValue.op_Implicit value
 let private sortedSetKey = getKey "rating:sortedSet"
 let private generateKey userId gameId = sprintf "%s:%s" userId gameId
 
-let setRating (userId: string) gameId rating = task {
+let setRating (userId: string) gameId rating =
     let entry = SortedSetEntry(RedisValue.op_Implicit(generateKey userId gameId), rating)
-    return! db.SortedSetAddAsync(sortedSetKey, [|entry|])
-}
+    db.SortedSetAddAsync(sortedSetKey, [|entry|])
 
 let private extractFromKey (key: string) =
     let l = key.Split(":") |> Array.toList
@@ -40,7 +39,7 @@ let getUserRating (userId: string) = task {
     return! db.SortedSetScoreAsync(sortedSetKey, RedisValue.op_Implicit(userId))
 }
 
-let private getRandomSetEntries setKey count = task {
+let getWords setKey count = task {
     let key = getKey setKey 
     let! values = db.SetRandomMembersAsync(key, count)
     return values |> Array.map (fun x -> x.ToString()) |> Array.toList
@@ -52,14 +51,7 @@ let fiveLetterSetKey = "fiveLetterWords:set"
 let sixLetterSetKey = "sixLetterWords:set"
 let sevenLetterSetKey = "sevenLetterWords:set"
 
-
-let getThreeLetterWords count = getRandomSetEntries threeLetterSetKey count
-let getFourLetterWords count = getRandomSetEntries fourLetterSetKey count
-let getFiveLetterWords count = getRandomSetEntries fiveLetterSetKey count
-let getSixLetterWords count = getRandomSetEntries sixLetterSetKey count
-let getSevenLetterWords count = getRandomSetEntries sevenLetterSetKey count
-
-let validate key words = task {
+let validate words key = task {
     let tasks = words |> List.map (fun x -> db.SetContainsAsync((getKey key), (getValue x)))
     let! results =  Task.WhenAll tasks
     return if results |> Array.contains false then NotValid else Valid

@@ -11,6 +11,7 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
 open Fable.PowerPack
+open Shared
 
 type Word = {
   x: float
@@ -26,6 +27,8 @@ type GameState = {
   currentRound: int
   score: float
   id: string
+  framesPerSecond: int
+  speed: float
 }
 
 type Game =
@@ -57,10 +60,11 @@ let fontFamily = "Segoe UI,Roboto,Oxygen,Ubuntu,Cantarell,Fira Sans,Droid Sans,H
 let font = sprintf "%ipx %s" (int(fontSize)) fontFamily
 
 let displayText word = word.text.Substring(word.typedCounter, word.text.Length - word.typedCounter)
-let move game = 
+let move (w, h) game =
+  let margin = h * game.speed
   let words = 
     game.words 
-    |> List.map (fun word -> { word with y = word.y + 3.})
+    |> List.map (fun word -> { word with y = word.y + margin})
     |> List.filter (fun x -> ((displayText x).Length <> 0))
   { game with words = words }
 
@@ -95,10 +99,9 @@ let drawScore (w, h) game =
   let x' = fontSize * 5. + float(text'.Length)
   do Win.drawText text' blackColor font (x', y)
 
-let renderLoopInterval = int(1000. / 60.)
-
-let rec render (w, h) game dispatch () =
-  let scheduleRender game' = window.setTimeout(render (w, h) game' dispatch, renderLoopInterval) |> ignore
+let rec render (w, h) game (framesPerSecond: int) dispatch () =
+  let scheduleRender game' =
+    window.setTimeout(render (w, h) game' framesPerSecond dispatch, int(1000. / float(framesPerSecond))) |> ignore
 
   match game with
   | Playing game ->
@@ -110,7 +113,7 @@ let rec render (w, h) game dispatch () =
       let game' =
         game
         |> handleTyping
-        |> move
+        |> move (w, h)
       match game'.words with
         | [] ->
           Keyboard.clear()
@@ -134,33 +137,35 @@ do Keyboard.init()
 let init () : Model * Cmd<Msg> =
   NotStarted, Cmd.none
 
-let initGame (words: string list) r score =
-  let words' = words |> List.map (fun x ->
+let initGame (round: Round) score =
+  let words' = round.words |> List.map (fun x ->
           let rand = random (w/3.) (2. * w / 3.)
           { x = rand; y  = 0. + fontSize; text = x; typedCounter = 0})
   let maxVisibleWords = 5.
   let margin = h / maxVisibleWords
 
   let words'' = words' |> List.mapi (fun i word -> {word with y = 0. - float(i) * margin})
-  { 
+  {
     words = words''
-    initialWords = words
-    initialWordsCount = List.length words
-    currentRound = r
+    initialWords = round.words
+    initialWordsCount = List.length round.words
+    currentRound = round.number
     score = score
     id = string (System.Guid.NewGuid())
+    framesPerSecond = round.framesPerSecond
+    speed = round.speed
   }
 
 let update msg model =
   match msg with
   | LoadGame (r, s) ->
-    let promise _ = 
-      Fetch.fetchAs<string list>(sprintf "/api/words/%i" r) []
-      |> Promise.map (fun x -> initGame x r s)
+    let promise _ =
+      Fetch.fetchAs<Round>(sprintf "/api/round/%i" r) []
+      |> Promise.map (fun x -> initGame x s)
     model, Cmd.ofPromise promise [] (Ok >> StartGame) (Error >> StartGame)
   | StartGame (Ok game) ->
     let sub dispatch =
-      do render (w, h) (Playing game) dispatch ()
+      do render (w, h) (Playing game) game.framesPerSecond dispatch () 
     Playing game, Cmd.ofSub sub
   | StartGame (Error _) ->
     model, Cmd.none
