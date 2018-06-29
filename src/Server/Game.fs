@@ -11,7 +11,7 @@ let private framesPerSecond = 60
 
 let private getRoundWorsSetKey = function
     | 1 | 2 -> threeLetterSetKey
-    | 3 | 4 | 5 | 6-> fourLetterSetKey
+    | 3 | 4 | 5 | 6 -> fourLetterSetKey
     | 7 | 8 -> fiveLetterSetKey
     | 9 -> sixLetterSetKey
     | _ -> sevenLetterSetKey
@@ -19,69 +19,25 @@ let private getRoundWorsSetKey = function
 let getRound round = task {
     if (round < 1) then failwith (sprintf "incorrect round: %i" round)
     let! words = getWords (getRoundWorsSetKey round) 20L
-    return
+    let speed =
         match round with
-        | 1 -> {
-                number = round
-                words = words
-                framesPerSecond = framesPerSecond
-                speed = 2. / 1000.
-            }
-        | 2 -> {
-                number = round
-                words = words
-                framesPerSecond = framesPerSecond
-                speed = 3. / 1000.
-            }
-        | 3 -> {
-                number = round
-                words = words
-                framesPerSecond = framesPerSecond
-                speed = 2.5 / 1000.
-            }
-        | 4 -> {
-                number = round
-                words = words
-                framesPerSecond = framesPerSecond
-                speed = 2.7 / 1000.
-            }
-        | 5 -> {
-                number = round
-                words = words
-                framesPerSecond = framesPerSecond
-                speed = 2.9 / 1000.
-            }
-        | 6 -> {
-                number = round
-                words = words
-                framesPerSecond = framesPerSecond
-                speed = 3.2 / 1000.
-            }
-        | 7 -> {
-                number = round
-                words = words
-                framesPerSecond = framesPerSecond
-                speed = 2.2 / 1000.
-            }
-        | 8 -> {
-                number = round
-                words = words
-                framesPerSecond = framesPerSecond
-                speed = 2.8 / 1000.
-            }
-        | 9 -> {
-                number = round
-                words = words
-                framesPerSecond = framesPerSecond
-                speed = 2.8 / 1000.
-            }
-        | round' -> {
-                number = round
-                words = words
-                framesPerSecond = framesPerSecond
-                speed = (1. + float(round')/4.) / 1000.
-            }
+        | 1 -> 2. / 1000.
+        | 2 -> 3. / 1000.
+        | 3 -> 2.5 / 1000.
+        | 4 -> 2.7 / 1000.
+        | 5 -> 2.9 / 1000.
+        | 6 -> 3.2 / 1000.
+        | 7 -> 2.2 / 1000.
+        | 8 -> 2.8 / 1000.
+        | 9 -> 2.8 / 1000.
+        | round' -> (1. + float(round')/4.) / 1000.
+    return {
+        number = round
+        words = words
+        framesPerSecond = framesPerSecond
+        speed = speed
     }
+}
 
 let private validateReplay (gameReplay: GameReplay) =
     validate gameReplay.words (getRoundWorsSetKey gameReplay.round)
