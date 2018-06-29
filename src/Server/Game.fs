@@ -19,23 +19,23 @@ let private getRoundWorsSetKey = function
 let getRound round = task {
     if (round < 1) then failwith (sprintf "incorrect round: %i" round)
     let! words = getWords (getRoundWorsSetKey round) 20L
-    let speed =
+    let speedInPixelsPer1000 =
         match round with
-        | 1 -> 2. / 1000.
-        | 2 -> 3. / 1000.
-        | 3 -> 2.5 / 1000.
-        | 4 -> 2.7 / 1000.
-        | 5 -> 2.9 / 1000.
-        | 6 -> 3.2 / 1000.
-        | 7 -> 2.2 / 1000.
-        | 8 -> 2.8 / 1000.
-        | 9 -> 2.8 / 1000.
-        | round' -> (1. + float(round')/4.) / 1000.
+        | 1 -> 2.
+        | 2 -> 3.
+        | 3 -> 2.5
+        | 4 -> 2.7
+        | 5 -> 2.9
+        | 6 -> 3.2
+        | 7 -> 2.2
+        | 8 -> 2.8
+        | 9 -> 2.8
+        | round' -> (1. + float(round')/4.)
     return {
         number = round
         words = words
         framesPerSecond = framesPerSecond
-        speed = speed
+        speed = speedInPixelsPer1000 / 1000.
     }
 }
 

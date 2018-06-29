@@ -10,7 +10,6 @@ type GameReplay = {
     score: Score
     words: string list
     round: int
-    gameId: string
 }
 
 type Round = {
