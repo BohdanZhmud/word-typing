@@ -40,7 +40,7 @@ type Game =
   | EndFail of GameState
 
 type Msg =
-  | LoadGame of int * float
+  | LoadGame of int * float * string
   | StartGame of Result<GameState, exn>
   | GameStarted of Game
   | Finish of Game
@@ -137,7 +137,7 @@ do Keyboard.init()
 let init () : Model * Cmd<Msg> =
   NotStarted, Cmd.none
 
-let initGame (round: Round) score =
+let initGame (round: Round) score gameId =
   let words' = round.words |> List.map (fun x ->
           let rand = random (w/3.) (2. * w / 3.)
           { x = rand; y  = 0. + fontSize; text = x; typedCounter = 0})
@@ -151,17 +151,17 @@ let initGame (round: Round) score =
     initialWordsCount = List.length round.words
     currentRound = round.number
     score = score
-    id = string (System.Guid.NewGuid())
+    id = gameId
     framesPerSecond = round.framesPerSecond
     speed = round.speed
   }
 
 let update msg model =
   match msg with
-  | LoadGame (r, s) ->
+  | LoadGame (round, score, gameId) ->
     let promise _ =
-      Fetch.fetchAs<Round>(sprintf "/api/round/%i" r) []
-      |> Promise.map (fun x -> initGame x s)
+      Fetch.fetchAs<Round>(sprintf "/api/round/%i" round) []
+      |> Promise.map (fun x -> initGame x score gameId)
     model, Cmd.ofPromise promise [] (Ok >> StartGame) (Error >> StartGame)
   | StartGame (Ok game) ->
     let sub dispatch =
@@ -199,17 +199,22 @@ let getScore game =
   match game with
   | Playing game | EndSuccess game -> game.score
   | _ -> 0.
+let getGameId game =
+  match game with
+  | EndSuccess game | Playing game-> game.id
+  | _ -> string (System.Guid.NewGuid())
 
 let view (model : Game) (dispatch : Msg -> unit) =
   let round = getRound model
   let score = getScore model
+  let gameId = getGameId model
   match model with
   | EndSuccess _ | EndFail _ | NotStarted _ | Loading | Loaded (Error _)->
     div [containerStyle]
       [ span [ Class "is-size-4" ] [
           str (getText model)
         ];
-       button [ Id startBtnId; Class "button is-success"; OnClick (fun _ -> dispatch (LoadGame (round, score)))] [str "Start"]]
+       button [ Id startBtnId; Class "button is-success"; OnClick (fun _ -> dispatch (LoadGame (round, score, gameId)))] [str "Start"]]
   | _ -> str ""
 
 document.addEventListener_keydown(fun e ->
