@@ -60,7 +60,7 @@ let storeRating gameReplay = task {
             }
 }
 
-let gameRouter = scope {
+let gameRouter = router {
   getf "/round/%i" (fun round next ctx ->
     task {
       let! words = getRound round
