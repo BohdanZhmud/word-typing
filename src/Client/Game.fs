@@ -226,7 +226,7 @@ let startGameButton model gameType round text dispatch id className =
          [str text]
 
 let getStartGameButtons model dispatch =
-  let startNormalGameButton id className = startGameButton model NormalGame (getRound model) "Start" dispatch id className
+  let startNormalGameButton id className = startGameButton model UsualGame (getRound model) "Start" dispatch id className
   let restartLastRoundButton game id =
     let text = sprintf "Restart last round (-%i%% score)" (int(Constants.percentageChargeForRestart * 100.))
     startGameButton model RestartLastRound game.currentRound text dispatch id "button is-success"
