@@ -6,10 +6,15 @@ type Score = {
     gameId: string
 }
 
+type GameType = 
+    | UsualGame
+    | RestartLastRound
+
 type GameReplay = {
     score: Score
     words: string list
     round: int
+    gameType: GameType
 }
 
 type Round = {
@@ -21,3 +26,4 @@ type Round = {
 
 module Constants =
     let guestName = "Guest"
+    let percentageChargeForRestart = 0.1

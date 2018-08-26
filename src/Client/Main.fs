@@ -38,7 +38,9 @@ let update msg model : Model * Cmd<Msg> =
           let storeResultCmd = Cmd.ofMsg (Rating.StoreResult { 
               words = game'.initialWords
               round = game'.currentRound
-              score = { name = model.user.id; value = game'.score; gameId = game'.id } })
+              score = { name = model.user.id; value = game'.score; gameId = game'.id }
+              gameType = game'.gameType
+            })
           Cmd.map RatingMsg storeResultCmd
         | _ -> Cmd.none
       | _ -> Cmd.none

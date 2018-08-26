@@ -29,6 +29,7 @@ type GameState = {
   id: string
   framesPerSecond: int
   speed: float
+  gameType: GameType
 }
 
 type Game =
@@ -39,8 +40,9 @@ type Game =
   | EndSuccess of GameState
   | EndFail of GameState
 
+
 type Msg =
-  | LoadGame of int * float * string
+  | LoadGame of int * float * string * GameType
   | StartGame of Result<GameState, exn>
   | GameStarted of Game
   | Finish of Game
@@ -137,7 +139,7 @@ do Keyboard.init()
 let init () : Model * Cmd<Msg> =
   NotStarted, Cmd.none
 
-let initGame (round: Round) score gameId =
+let initGame (round: Round) score gameId gameType =
   let words' = round.words |> List.map (fun x ->
           let rand = random (w/3.) (2. * w / 3.)
           { x = rand; y  = 0. + fontSize; text = x; typedCounter = 0})
@@ -154,14 +156,15 @@ let initGame (round: Round) score gameId =
     id = gameId
     framesPerSecond = round.framesPerSecond
     speed = round.speed
+    gameType = gameType
   }
 
 let update msg model =
   match msg with
-  | LoadGame (round, score, gameId) ->
+  | LoadGame (round, score, gameId, gameType) ->
     let promise _ =
       Fetch.fetchAs<Round>(sprintf "/api/round/%i" round) []
-      |> Promise.map (fun x -> initGame x score gameId)
+      |> Promise.map (fun x -> initGame x score gameId gameType)
     model, Cmd.ofPromise promise [] (Ok >> StartGame) (Error >> StartGame)
   | StartGame (Ok game) ->
     let sub dispatch =
@@ -182,12 +185,17 @@ let getText model =
   | _ -> ""
 
 let containerStyle = 
-    Style [
-        Display "flex"
-        JustifyContent "center"
-        AlignItems "center"
-        FlexDirection "column"
-    ]
+  Style [
+      Display "flex"
+      JustifyContent "center"
+      AlignItems "center"
+      FlexDirection "column"
+  ]
+
+let buttonsContainerStyle =
+  Style [
+    Display "flex"
+  ]
 
 let startBtnId = "start-btn";
 let getRound game =
@@ -204,17 +212,38 @@ let getGameId game =
   | EndSuccess game | Playing game-> game.id
   | _ -> string (System.Guid.NewGuid())
 
-let view (model : Game) (dispatch : Msg -> unit) =
-  let round = getRound model
+let startButtonStyle =
+  Style [
+    Margin "10px"
+  ]
+let startGameButton model gameType round text dispatch id className =
   let score = getScore model
   let gameId = getGameId model
+  button [ Id id;
+           Class className;
+           startButtonStyle
+           OnClick (fun _ -> dispatch (LoadGame (round, score, gameId, gameType)))]
+         [str text]
+
+let getStartGameButtons model dispatch =
+  let startNormalGameButton id className = startGameButton model NormalGame (getRound model) "Start" dispatch id className
+  let restartLastRoundButton game id =
+    let text = sprintf "Restart last round (-%i%% score)" (int(Constants.percentageChargeForRestart * 100.))
+    startGameButton model RestartLastRound game.currentRound text dispatch id "button is-success"
   match model with
-  | EndSuccess _ | EndFail _ | NotStarted _ | Loading | Loaded (Error _)->
+  | EndFail game when game.currentRound <> 1 ->
+    [ restartLastRoundButton game startBtnId; startNormalGameButton "" "button" ]
+  | EndSuccess _ | EndFail _ | NotStarted | Loading | Loaded (Error _) ->
+    [ startNormalGameButton startBtnId "button is-success"]
+  | _ -> [ str "" ]
+
+let view (model : Game) (dispatch : Msg -> unit) =
+  let buttons = getStartGameButtons model dispatch
+  match model with
+  | EndSuccess _ | EndFail _ | NotStarted | Loading | Loaded (Error _) ->
     div [containerStyle]
-      [ span [ Class "is-size-4" ] [
-          str (getText model)
-        ];
-       button [ Id startBtnId; Class "button is-success"; OnClick (fun _ -> dispatch (LoadGame (round, score, gameId)))] [str "Start"]]
+      [ span [ Class "is-size-4" ] [ str (getText model) ];
+        div [buttonsContainerStyle] buttons]
   | _ -> str ""
 
 document.addEventListener_keydown(fun e ->

@@ -40,18 +40,31 @@ let getRound round = task {
 }
 
 let private validateReplay (gameReplay: GameReplay) =
-    validate gameReplay.words (getRoundWorsSetKey gameReplay.round)
+    match gameReplay.gameType with
+    | RestartLastRound when gameReplay.round <> 1 -> task {
+            return NotValid
+        }
+    | _ -> validate gameReplay.words (getRoundWorsSetKey gameReplay.round)
 
 let getRating () = Redis.getRating 10L
 
 let storeRating gameReplay = task {
     let score = gameReplay.score
     let! currentScore = Redis.getUserRating score.name
+    let currentScore'= currentScore.GetValueOrDefault()
+
     return!
-        match currentScore.GetValueOrDefault() < score.value with
-        | true -> validateReplay gameReplay |> Validation.bindT (fun _ ->
+        match currentScore' < score.value with
+        | true -> gameReplay |> validateReplay |> Validation.bindT (fun _ ->
             task {
-                let! _ =  Redis.setRating score.name score.gameId score.value
+                match gameReplay.gameType with
+                | UsualGame -> 
+                    let! _ =  Redis.setRating score.name score.gameId score.value
+                    ()
+                | RestartLastRound -> 
+                    let dif = score.value - currentScore'
+                    let! _ =  Redis.setRating score.name score.gameId (score.value - dif * Constants.percentageChargeForRestart)
+                    ()
                 return Valid
             })
         | false ->
