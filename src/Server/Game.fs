@@ -41,36 +41,32 @@ let getRound round = task {
 
 let private validateReplay (gameReplay: GameReplay) =
     match gameReplay.gameType with
-    | RestartLastRound when gameReplay.round <> 1 -> task {
+    | RestartLastRound when gameReplay.round = 1 -> task {
             return NotValid
         }
-    | _ -> validate gameReplay.words (getRoundWorsSetKey gameReplay.round)
+    | RestartLastRound | UsualGame _ -> validate gameReplay.words (getRoundWorsSetKey gameReplay.round)
 
 let getRating () = Redis.getRating 10L
 
-let storeRating gameReplay = task {
-    let score = gameReplay.score
-    let! currentScore = Redis.getUserRating score.name
-    let currentScore'= currentScore.GetValueOrDefault()
+let storeScore gameReplay = task {
+    let setScore gameReplay' calculateValueToSet = task {
+        let score = gameReplay'.score
+        let! currentScore = Redis.getUserScore score.userId gameReplay'.score.gameId
+        let valueToSet = calculateValueToSet currentScore
+        do! Redis.setScore score.userId score.gameId valueToSet
+        return valueToSet
+    }
 
-    return!
-        match currentScore' < score.value with
-        | true -> gameReplay |> validateReplay |> Validation.bindT (fun _ ->
-            task {
+    return! gameReplay |> validateReplay |> Validation.bindT (fun _ ->
+        task {
+            let! r = 
                 match gameReplay.gameType with
-                | UsualGame -> 
-                    let! _ =  Redis.setRating score.name score.gameId score.value
-                    ()
-                | RestartLastRound -> 
-                    let dif = score.value - currentScore'
-                    let! _ =  Redis.setRating score.name score.gameId (score.value - dif * Constants.percentageChargeForRestart)
-                    ()
-                return Valid
-            })
-        | false ->
-            task {
-                return Valid
-            }
+                | UsualGame -> setScore gameReplay (fun currentScore -> (currentScore + gameReplay.score.value))
+                | RestartLastRound ->
+                    let score = gameReplay.score
+                    setScore gameReplay (fun currentScore -> (currentScore + (score.value * (1. - Constants.percentageChargeForRestart))))
+            return Valid (r)
+        })
 }
 
 let gameRouter = router {
@@ -87,13 +83,13 @@ let gameRouter = router {
       return! Successful.OK rating next ctx
     })
 
-  post "/rating" (fun next ctx ->
+  post "/score" (fun next ctx ->
     task {
       let! gr = ctx.BindModelAsync<GameReplay>()
-      let! validationResult = storeRating gr
+      let! validationResult = storeScore gr
       return!
         match validationResult with
-        | Valid -> Successful.OK None next ctx
+        | Valid score -> Successful.OK score next ctx
         | NotValid -> RequestErrors.BAD_REQUEST None next ctx
     })
 }

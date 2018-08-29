@@ -1,10 +1,11 @@
 namespace Shared
 
 type Score = {
-    name: string
-    value: float
+    userId: string
     gameId: string
+    value: float
 }
+
 
 type GameType = 
     | UsualGame

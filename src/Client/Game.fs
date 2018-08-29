@@ -25,7 +25,8 @@ type GameState = {
   initialWordsCount: int
   words: Word list
   currentRound: int
-  score: float
+  totalScore: float
+  scoreForCurrentRound: float
   id: string
   framesPerSecond: int
   speed: float
@@ -46,6 +47,9 @@ type Msg =
   | StartGame of Result<GameState, exn>
   | GameStarted of Game
   | Finish of Game
+
+  | StoreScore of GameReplay
+  | StoredScore of Result<float, exn>
 
 type Model = Game
 
@@ -83,7 +87,7 @@ let handleTyping game =
     let increment = if Keyboard.keyPresed (text.ToUpperInvariant()) then 1 else 0
     if increment = 1 then do Keyboard.clear()
     let word' = { word with typedCounter = word.typedCounter + increment }
-    { game with words = word' :: (List.tail words); score = game.score + float(increment) }
+    { game with words = word' :: (List.tail words); scoreForCurrentRound = game.scoreForCurrentRound + float(increment) }
 
 let drawText text color x y =
   let centerX = getCenterPositionX x text
@@ -152,7 +156,8 @@ let initGame (round: Round) score gameId gameType =
     initialWords = round.words
     initialWordsCount = List.length round.words
     currentRound = round.number
-    score = score
+    scoreForCurrentRound = 0.
+    totalScore = score
     id = gameId
     framesPerSecond = round.framesPerSecond
     speed = round.speed
@@ -170,15 +175,34 @@ let update msg model =
     let sub dispatch =
       do render (w, h) (Playing game) game.framesPerSecond dispatch () 
     Playing game, Cmd.ofSub sub
-  | StartGame (Error _) ->
-    model, Cmd.none
+  | StartGame (Error _) -> model, Cmd.none
   | GameStarted game -> game, Cmd.none
-  | Finish gameState -> gameState, Cmd.none
+  | Finish gameState -> gameState, Cmd.none 
+  | StoreScore gameReplay when gameReplay.score.value > 0. ->
+      let cmd =
+        Cmd.ofPromise
+          (fun _ -> promise {
+            let! res = Fetch.postRecord "api/score" gameReplay []
+            let! text = res.text()
+            return float(text)
+          })
+          ()
+          (Ok >> StoredScore)
+          (Error >> StoredScore)
+      model, cmd
+  | StoredScore (Ok score) ->
+    let model' = 
+      match model with
+      | EndSuccess game -> EndSuccess ({ game with totalScore = score })
+      | EndFail game -> EndFail ({ game with totalScore = score })
+      | _ -> model
+    model', Cmd.none
+  | _ -> model, Cmd.none
 
 let getText model =
   match model with
-  | EndSuccess game -> sprintf "Round %i successfully cleared. Current score: %i. Press ENTER to get to next round." game.currentRound (int(game.score))
-  | EndFail game -> sprintf "Round %i. Game over. Current score: %i. Press ENTER to start again." game.currentRound (int(game.score))
+  | EndSuccess game -> sprintf "Round %i successfully cleared. Current score: %i. Press ENTER to get to next round." game.currentRound (int(game.totalScore))
+  | EndFail game -> sprintf "Round %i. Game over. Current score: %i. Press ENTER to start again." game.currentRound (int(game.totalScore))
   | NotStarted _ -> "Press ENTER to start."
   | Loading -> "Loading game..."
   | Loaded (Error _) -> "Failed to load game. Please try again."
@@ -205,12 +229,8 @@ let getRound game =
   | _ -> 1
 let getScore game =
   match game with
-  | Playing game | EndSuccess game -> game.score
+  | Playing game | EndSuccess game -> game.totalScore
   | _ -> 0.
-let getGameId game =
-  match game with
-  | EndSuccess game | Playing game-> game.id
-  | _ -> string (System.Guid.NewGuid())
 
 let startButtonStyle =
   Style [
@@ -218,7 +238,13 @@ let startButtonStyle =
   ]
 let startGameButton model gameType round text dispatch id className =
   let score = getScore model
-  let gameId = getGameId model
+  let gameId = 
+    match gameType with
+    | RestartLastRound ->
+      match model with
+      | EndSuccess game | EndFail game -> game.id
+      | _ -> string (System.Guid.NewGuid)
+    | UsualGame -> string (System.Guid.NewGuid)
   button [ Id id;
            Class className;
            startButtonStyle
@@ -226,15 +252,15 @@ let startGameButton model gameType round text dispatch id className =
          [str text]
 
 let getStartGameButtons model dispatch =
-  let startNormalGameButton id className = startGameButton model UsualGame (getRound model) "Start" dispatch id className
+  let startNormalGameButton id className text = startGameButton model UsualGame (getRound model) text dispatch id className
   let restartLastRoundButton game id =
     let text = sprintf "Restart last round (-%i%% score)" (int(Constants.percentageChargeForRestart * 100.))
     startGameButton model RestartLastRound game.currentRound text dispatch id "button is-success"
   match model with
   | EndFail game when game.currentRound <> 1 ->
-    [ restartLastRoundButton game startBtnId; startNormalGameButton "" "button" ]
+    [ restartLastRoundButton game startBtnId; startNormalGameButton "" "button" "Start new" ]
   | EndSuccess _ | EndFail _ | NotStarted | Loading | Loaded (Error _) ->
-    [ startNormalGameButton startBtnId "button is-success"]
+    [ startNormalGameButton startBtnId "button is-success" "Start"]
   | _ -> [ str "" ]
 
 let view (model : Game) (dispatch : Msg -> unit) =

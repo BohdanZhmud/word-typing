@@ -1,14 +1,14 @@
 module Validation
 open Giraffe.Common
 
-type ValidationResult = 
-    | Valid
+type ValidationResult<'T> = 
+    | Valid of 'T
     | NotValid
 
 let bind f x =
     match x with 
     | NotValid -> NotValid
-    | Valid -> f x
+    | Valid x' -> f x'
 
 let bindT f vT = task {
     let! v = vT

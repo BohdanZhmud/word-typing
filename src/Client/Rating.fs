@@ -12,7 +12,6 @@ type Model = Score list option
 type Msg =
     | Loading
     | Loaded of Result<Score list, exn>
-    | StoreResult of GameReplay
 
 let init () : Model * Cmd<Msg> =
   None, Cmd.ofMsg Loading
@@ -28,14 +27,6 @@ let update (msg : Msg) (model : Model) : Model * Cmd<Msg> =
           (Ok >> Loaded)
           (Error >> Loaded)
       None, cmd
-    | _, StoreResult gameReplay when gameReplay.score.value > 0. ->
-      let cmd =
-        Cmd.ofPromise
-          (Fetch.postRecord "api/rating" gameReplay)
-          []
-          (fun _ -> Loading)
-          (Error >> Loaded)
-      model, cmd
     | _ -> model, Cmd.none
 
 let topResultsStyle =
