@@ -32,17 +32,17 @@ let update msg model : Model * Cmd<Msg> =
     let res, cmd = Game.update msg' model.game
     let cmd' =
       match msg' with
-      | Game.Finish game -> 
-        match game with 
-        | Game.EndSuccess game' | Game.EndFail game' -> 
-          let storeResultCmd = Cmd.ofMsg (Game.StoreScore {  
-              words = game'.initialWords 
-              round = game'.currentRound 
-              score = { userId = model.user.id; value = game'.scoreForCurrentRound; gameId = game'.id } 
-              gameType = game'.gameType 
+      | Game.Finish game ->
+        match game with
+        | Game.EndSuccess game' | Game.EndFail game' ->
+          let storeResultCmd = Cmd.ofMsg (Game.StoreScore {
+              words = game'.initialWords
+              round = game'.currentRound
+              score = { userId = model.user.id; value = game'.scoreForCurrentRound; gameId = game'.id }
+              gameType = game'.gameType
             }) 
-          Cmd.map GameMsg storeResultCmd 
-        | _ -> Cmd.none 
+          Cmd.map GameMsg storeResultCmd
+        | _ -> Cmd.none
       | Game.StoredScore (Ok _) -> Cmd.map RatingMsg (Cmd.ofMsg Rating.Loading)
       | _ -> Cmd.none
     { model with game = res }, Cmd.batch [Cmd.map GameMsg cmd; cmd']

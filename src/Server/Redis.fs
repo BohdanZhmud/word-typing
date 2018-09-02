@@ -26,15 +26,17 @@ let setScore (userId: string) gameId rating = task {
 let private extractFromKey (key: string) =
     let l = key.Split(":") |> Array.toList
     match l with
-    | [userId] -> userId, String.Empty
-    | [userId;gameId] -> userId, gameId
-    | _ -> failwith (sprintf "Incorrect value storred in db: %s" key)
+    | [userId;gameId] -> Some (userId, gameId)
+    | _ -> None
 
 let getRating top = task {
     let! values = db.SortedSetRangeByScoreWithScoresAsync (sortedSetKey, skip = 0L, take = top, order = Order.Descending)
-    return values |> Array.map (fun x ->
-        let (userId, gameId) = extractFromKey (x.Element.ToString())
-        { userId = userId; value = x.Score; gameId = gameId })
+    return values 
+        |> Array.map (fun x ->
+            extractFromKey (x.Element.ToString())
+            |> Option.map (fun (userId, gameId) -> { userId = userId; value = x.Score; gameId = gameId }))
+        |> Array.filter Option.isSome
+        |> Array.map Option.get
 }
 
 let getUserScore (userId: string) gameId = task {

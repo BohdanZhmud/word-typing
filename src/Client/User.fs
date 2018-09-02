@@ -1,25 +1,26 @@
 module User
-    open Elmish
-    open Shared
-    
-    type Model = {
-        id: string
-        displayName: string
-    }
 
-    type Msg = None
+open Elmish
+open Shared
 
-    let delimiter = '~'
-    let generateRandomId () = Constants.guestName + string delimiter + string (System.Guid.NewGuid())
+type Model = {
+    id: string
+    displayName: string
+}
 
-    let getDisplayName (id: string) = 
-      if id.Contains(string delimiter) && id.Split(delimiter).[0] = Constants.guestName
-      then Constants.guestName
-      else id
+type Msg = None
 
-    let init () : Model * Cmd<Msg> =
-        let id = generateRandomId()
-        { id = id; displayName = getDisplayName id }, Cmd.ofMsg None
+let delimiter = '~'
+let generateRandomId () = Constants.guestName + string delimiter + string (System.Guid.NewGuid())
 
-    let update msg model : Model * Cmd<Msg> =
-        model, Cmd.none
+let getDisplayName (id: string) = 
+  if id.Contains(string delimiter) && id.Split(delimiter).[0] = Constants.guestName
+  then Constants.guestName
+  else id
+
+let init () : Model * Cmd<Msg> =
+    let id = generateRandomId()
+    { id = id; displayName = getDisplayName id }, Cmd.ofMsg None
+
+let update msg model : Model * Cmd<Msg> =
+    model, Cmd.none
