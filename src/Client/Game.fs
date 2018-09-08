@@ -167,10 +167,13 @@ let initGame (round: Round) score gameId gameType =
 let update msg model =
   match msg with
   | LoadGame (round, score, gameId, gameType) ->
-    let promise _ =
-      Fetch.fetchAs<Round>(sprintf "/api/round/%i" round) []
-      |> Promise.map (fun x -> initGame x score gameId gameType)
-    model, Cmd.ofPromise promise [] (Ok >> StartGame) (Error >> StartGame)
+    match model with
+    | Loading -> model, Cmd.none
+    | _ ->
+      let promise _ =
+        Fetch.fetchAs<Round>(sprintf "/api/round/%i" round) []
+        |> Promise.map (fun x -> initGame x score gameId gameType)
+      model, Cmd.ofPromise promise [] (Ok >> StartGame) (Error >> StartGame)
   | StartGame (Ok game) ->
     let sub dispatch =
       do render (w, h) (Playing game) game.framesPerSecond dispatch () 

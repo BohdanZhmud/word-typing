@@ -6,7 +6,6 @@ type Score = {
     value: float
 }
 
-
 type GameType = 
     | UsualGame
     | RestartLastRound
