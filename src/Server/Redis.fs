@@ -1,5 +1,6 @@
 module Redis
 
+open System
 open Shared
 open Validation
 open StackExchange.Redis
