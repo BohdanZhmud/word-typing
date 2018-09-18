@@ -1,16 +1,20 @@
 open Microsoft.AspNetCore.Builder
 open Microsoft.Extensions.DependencyInjection
 open Saturn
-
 open Giraffe.Serialization
 open System.IO
 open Game
+open Auth
+open System.Security.Claims
+open System
 
 let publicPath = Path.GetFullPath "../Client/public"
 let port = 8085us
 
 let webApp = router {
-  forward "/api" gameRouter
+  forward "/api/game" gameRouter
+  forward "/api/auth" authApiRouter
+  forward "/auth" authRouter
 }
 
 let configureSerialization (services:IServiceCollection) =
@@ -23,6 +27,14 @@ let configureApp (app:IApplicationBuilder) =
 
 let app = application {
     url ("http://0.0.0.0:" + port.ToString() + "/")
+    use_github_oauth
+      (Environment.GetEnvironmentVariable "github_client_id")
+      (Environment.GetEnvironmentVariable "github_client_secret")
+      "/oauth_callback_github" ["id", ClaimTypes.NameIdentifier; "login", ClaimTypes.Name; ]
+    use_google_oauth
+      (Environment.GetEnvironmentVariable "google_client_id")
+      (Environment.GetEnvironmentVariable "google_client_secret")
+      "/oauth_callback_google" ["id", ClaimTypes.NameIdentifier; "displayName", ClaimTypes.Name]
     use_gzip
     use_router webApp
     app_config configureApp

@@ -7,11 +7,11 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 open Utils
 
-type Model = Score list option
+type Model = RatingEntry list option
 
 type Msg =
     | Loading
-    | Loaded of Result<Score list, exn>
+    | Loaded of Result<RatingEntry list, exn>
 
 let init () : Model * Cmd<Msg> =
   None, Cmd.ofMsg Loading
@@ -22,7 +22,7 @@ let update (msg : Msg) (model : Model) : Model * Cmd<Msg> =
     | _, Loading ->
       let cmd =
         Cmd.ofPromise
-          (Fetch.fetchAs<Score list> "api/rating")
+          (Fetch.fetchAs<RatingEntry list> "api/game/rating")
           []
           (Ok >> Loaded)
           (Error >> Loaded)
@@ -33,7 +33,7 @@ let topResultsStyle =
   Style [
     MarginLeft "1em"
   ]
-let view (model : Model) (userModel: User.Model) (dispatch : Msg -> unit) =
+let view (model : Model) (dispatch : Msg -> unit) =
   match model with
   | None -> str "Loading rating..."
   | Some rating ->
@@ -42,11 +42,11 @@ let view (model : Model) (userModel: User.Model) (dispatch : Msg -> unit) =
       table
         [ Class "table" ] [
           tbody []
-            (rating |> List.sortByDescending (fun x -> x.value) |> List.mapi (fun i x -> 
+            (rating |> List.sortByDescending (fun x -> x.score.value) |> List.mapi (fun i x -> 
                 tr [] [
                    th [] [ str (i |> increment |> string)]
-                   td [] [ str userModel.displayName ]
-                   td [] [ str (string (int(x.value))) ]
+                   td [] [ str x.userDisplayName ]
+                   td [] [ str (string (int(x.score.value))) ]
                 ]))
         ]
     ]

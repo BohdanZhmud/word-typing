@@ -74,7 +74,7 @@ let move (w, h) game =
     |> List.filter (fun x -> ((displayText x).Length <> 0))
   { game with words = words }
 
-let getCenterPositionX x (text: string) =
+let getCenterPosition x (text: string) =
   let centerTextMargin = float(text.Length) / 4. * fontSize
   x - centerTextMargin
 
@@ -90,7 +90,7 @@ let handleTyping game =
     { game with words = word' :: (List.tail words); scoreForCurrentRound = game.scoreForCurrentRound + float(increment) }
 
 let drawText text color x y =
-  let centerX = getCenterPositionX x text
+  let centerX = getCenterPosition x text
   Win.drawText text color font (centerX, y)
 
 let drawScore (w, h) game =
@@ -171,7 +171,7 @@ let update msg model =
     | Loading -> model, Cmd.none
     | _ ->
       let promise _ =
-        Fetch.fetchAs<Round>(sprintf "/api/round/%i" round) []
+        Fetch.fetchAs<Round>(sprintf "/api/game/round/%i" round) []
         |> Promise.map (fun x -> initGame x score gameId gameType)
       model, Cmd.ofPromise promise [] (Ok >> StartGame) (Error >> StartGame)
   | StartGame (Ok game) ->
@@ -185,7 +185,7 @@ let update msg model =
       let cmd =
         Cmd.ofPromise
           (fun _ -> promise {
-            let! res = Fetch.postRecord "api/score" gameReplay []
+            let! res = Fetch.postRecord "api/game/score" gameReplay []
             let! text = res.text()
             return float(text)
           })
@@ -241,13 +241,10 @@ let startButtonStyle =
   ]
 let startGameButton model gameType round text dispatch id className =
   let score = getScore model
-  let gameId = 
-    match gameType with
-    | RestartLastRound ->
-      match model with
-      | EndSuccess game | EndFail game -> game.id
-      | _ -> string (System.Guid.NewGuid)
-    | UsualGame -> string (System.Guid.NewGuid)
+  let gameId =
+    match model with
+    | EndSuccess game | EndFail game -> game.id
+    | _ -> string (System.Guid.NewGuid())
   button [ Id id;
            Class className;
            startButtonStyle

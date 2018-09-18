@@ -1,21 +1,22 @@
 module Utils
-    let rand = new System.Random()
 
-    let random max min = Fable.Import.JS.Math.random() * (max - min) + min;
+let rand = new System.Random()
 
-    let swap (a: _[]) x y =
-        let tmp = a.[x]
-        a.[x] <- a.[y]
-        a.[y] <- tmp
+let random max min = Fable.Import.JS.Math.random() * (max - min) + min;
 
-    // shuffle an array (in-place)
-    let shuffle a =
-        let c = Array.copy a
-        Array.iteri (fun i _ -> swap a i (rand.Next(i, Array.length a))) c
+let swap (a: _[]) x y =
+    let tmp = a.[x]
+    a.[x] <- a.[y]
+    a.[y] <- tmp
 
-    let shuffleList l =
-        let x = List.toArray l
-        do shuffle x
-        Array.toList x
+// shuffle an array (in-place)
+let shuffle a =
+    let c = Array.copy a
+    Array.iteri (fun i _ -> swap a i (rand.Next(i, Array.length a))) c
 
-    let increment i = i + 1
+let shuffleList l =
+    let x = List.toArray l
+    do shuffle x
+    Array.toList x
+
+let increment i = i + 1

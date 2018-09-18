@@ -3,42 +3,51 @@ var webpack = require("webpack");
 var fableUtils = require("fable-utils");
 
 function resolve(filePath) {
-  return path.join(__dirname, filePath)
+  return path.join(__dirname, filePath);
 }
 
 var babelOptions = fableUtils.resolveBabelOptions({
   presets: [
-    ["env", {
-      "targets": {
-        "browsers": ["last 2 versions"]
-      },
-      "modules": false
-    }]
+    [
+      "env",
+      {
+        targets: {
+          browsers: ["last 2 versions"]
+        },
+        modules: false
+      }
+    ]
   ],
   plugins: ["transform-runtime"]
 });
 
-
 var isProduction = process.argv.indexOf("-p") >= 0;
 var port = process.env.SUAVE_FABLE_PORT || "8085";
-console.log("Bundling for " + (isProduction ? "production" : "development") + "...");
+console.log(
+  "Bundling for " + (isProduction ? "production" : "development") + "..."
+);
 
 module.exports = {
   devtool: "source-map",
-  entry: resolve('./Client.fsproj'),
+  entry: resolve("./Client.fsproj"),
   mode: isProduction ? "production" : "development",
   output: {
-    path: resolve('./public/js'),
+    path: resolve("./public/js"),
     publicPath: "/js",
     filename: "bundle.js"
   },
   resolve: {
-    modules: [ resolve("../../node_modules/")]
+    modules: [resolve("../../node_modules/")]
   },
   devServer: {
     proxy: {
-      '/api/*': {
-        target: 'http://localhost:' + port,
+      "/api/*": {
+        target: "http://localhost:" + port,
+        changeOrigin: true
+      },
+
+      "/auth/*": {
+        target: "http://localhost:" + port,
         changeOrigin: true
       }
     },
@@ -62,14 +71,16 @@ module.exports = {
         test: /\.js$/,
         exclude: /node_modules/,
         use: {
-          loader: 'babel-loader',
+          loader: "babel-loader",
           options: babelOptions
-        },
+        }
       }
     ]
   },
-  plugins : isProduction ? [] : [
-      new webpack.HotModuleReplacementPlugin(),
-      new webpack.NamedModulesPlugin()
-  ]
+  plugins: isProduction
+    ? []
+    : [
+        new webpack.HotModuleReplacementPlugin(),
+        new webpack.NamedModulesPlugin()
+      ]
 };

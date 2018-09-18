@@ -6,6 +6,7 @@ open Redis
 open Giraffe.Common
 open Saturn
 open Giraffe
+open System.Security.Claims
 
 let private framesPerSecond = 60
 
@@ -48,12 +49,12 @@ let private validateReplay (gameReplay: GameReplay) =
 
 let getRating () = Redis.getRating 10L
 
-let storeScore gameReplay = task {
+let storeScore gameReplay userDisplayName = task {
     let setScore gameReplay' calculateValueToSet = task {
         let score = gameReplay'.score
-        let! currentScore = Redis.getUserScore score.userId gameReplay'.score.gameId
+        let! currentScore = Redis.getUserScore score.userId userDisplayName gameReplay'.score.gameId
         let valueToSet = calculateValueToSet currentScore
-        do! Redis.setScore score.userId score.gameId valueToSet
+        do! Redis.setScore score.userId userDisplayName score.gameId valueToSet
         return valueToSet
     }
 
@@ -74,8 +75,7 @@ let gameRouter = router {
     task {
       let! words = getRound round
       return! Successful.OK words next ctx
-    }
-  )
+    })
 
   get "/rating" (fun next ctx ->
     task {
@@ -86,7 +86,15 @@ let gameRouter = router {
   post "/score" (fun next ctx ->
     task {
       let! gr = ctx.BindModelAsync<GameReplay>()
-      let! validationResult = storeScore gr
+      let userDisplayName =
+        match ctx.User.Identity.IsAuthenticated with
+        | true ->
+            ctx.User.Claims
+            |> Seq.filter (fun claim -> claim.Type = ClaimTypes.Name)
+            |> Seq.map (fun claim -> claim.Value)
+            |> Seq.head
+        | false -> Constants.guestName
+      let! validationResult = storeScore gr userDisplayName
       return!
         match validationResult with
         | Valid score -> Successful.OK score next ctx

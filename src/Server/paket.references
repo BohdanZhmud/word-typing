@@ -4,3 +4,4 @@ Saturn
 Fable.JsonConverter
 Microsoft.DotNet.Watcher.Tools
 StackExchange.Redis
+Saturn.Extensions.Authorization

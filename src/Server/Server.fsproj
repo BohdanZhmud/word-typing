@@ -8,6 +8,7 @@
     <Compile Include="Validation.fs" />
     <Compile Include="Redis.fs" />
     <Compile Include="Game.fs" />
+    <Compile Include="Auth.fs" />
     <Compile Include="Server.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
