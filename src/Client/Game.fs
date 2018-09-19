@@ -67,9 +67,9 @@ let font = sprintf "%ipx %s" (int(fontSize)) fontFamily
 
 let displayText word = word.text.Substring(word.typedCounter, word.text.Length - word.typedCounter)
 let move (w, h) game =
-  let margin = h * game.speed
-  let words = 
-    game.words 
+  let margin = h * (game.speed / window.devicePixelRatio)
+  let words =
+    game.words
     |> List.map (fun word -> { word with y = word.y + margin})
     |> List.filter (fun x -> ((displayText x).Length <> 0))
   { game with words = words }
