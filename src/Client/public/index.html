@@ -23,6 +23,17 @@
 <body>
     <div id="elmish-app"></div>
     <canvas id="canvas" style="position: fixed; z-index: 1024;"></canvas>
+    <script>
+        function fullScreenCanvas() {
+            var ratio = window.devicePixelRatio;
+            var can = document.getElementsByTagName('canvas')[0]
+            can.width = window.innerWidth * ratio;
+            can.height = window.innerHeight * ratio;
+            can.style.width = window.innerWidth + "px";
+            can.style.height = window.innerHeight + "px";
+            can.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0);
+        }
+    </script>
     <script src="./js/bundle.js"></script>
 </body>
 

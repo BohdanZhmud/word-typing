@@ -3,10 +3,11 @@ module Win
 open Fable.Core
 open Fable.Import.Browser
 
-let canvas = document.getElementsByTagName_canvas().[0]
-canvas.width <- window.innerWidth;
-canvas.height <- window.innerHeight;
+[<Emit("fullScreenCanvas")>]
+let fullScreenCanvas: unit -> unit = jsNative
+fullScreenCanvas()
 
+let canvas = document.getElementsByTagName_canvas().[0]
 let context = canvas.getContext_2d()
 
 let drawText text color font position =
@@ -16,10 +17,9 @@ let drawText text color font position =
     ctx.fillText(text, (fst position), (snd position))
 
 let dimensions() =
-  canvas.width, canvas.height
+  canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio
 
 let clear () =
-    let ctx = canvas.getContext_2d()
     let w, h = dimensions()
-    ctx.clearRect(0., 0., w, h)
+    context.clearRect(0., 0., w, h)
     ()

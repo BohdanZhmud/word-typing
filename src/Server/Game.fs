@@ -43,8 +43,8 @@ let getRound round = task {
 let private validateReplay (gameReplay: GameReplay) =
     match gameReplay.gameType with
     | RestartLastRound when gameReplay.round = 1 -> task {
-            return NotValid
-        }
+        return NotValid
+      }
     | RestartLastRound | UsualGame _ -> validate gameReplay.words (getRoundWorsSetKey gameReplay.round)
 
 let getRating () = Redis.getRating 10L
@@ -64,8 +64,8 @@ let storeScore gameReplay userDisplayName = task {
                 match gameReplay.gameType with
                 | UsualGame -> setScore gameReplay (fun currentScore -> (currentScore + gameReplay.score.value))
                 | RestartLastRound ->
-                    let score = gameReplay.score
-                    setScore gameReplay (fun currentScore -> (currentScore + (score.value * (1. - Constants.percentageChargeForRestart))))
+                  let score = gameReplay.score
+                  setScore gameReplay (fun currentScore -> (currentScore + (score.value * (1. - Constants.percentageChargeForRestart))))
             return Valid (r)
         })
 }
@@ -89,10 +89,10 @@ let gameRouter = router {
       let userDisplayName =
         match ctx.User.Identity.IsAuthenticated with
         | true ->
-            ctx.User.Claims
-            |> Seq.filter (fun claim -> claim.Type = ClaimTypes.Name)
-            |> Seq.map (fun claim -> claim.Value)
-            |> Seq.head
+          ctx.User.Claims
+          |> Seq.filter (fun claim -> claim.Type = ClaimTypes.Name)
+          |> Seq.map (fun claim -> claim.Value)
+          |> Seq.head
         | false -> Constants.guestName
       let! validationResult = storeScore gr userDisplayName
       return!
