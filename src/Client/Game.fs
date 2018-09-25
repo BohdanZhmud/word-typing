@@ -67,7 +67,7 @@ let font = sprintf "%ipx %s" (int(fontSize)) fontFamily
 
 let displayText word = word.text.Substring(word.typedCounter, word.text.Length - word.typedCounter)
 let move (w, h) game =
-  let margin = h * (game.speed / window.devicePixelRatio)
+  let margin = game.speed
   let words =
     game.words
     |> List.map (fun word -> { word with y = word.y + margin})
@@ -89,9 +89,11 @@ let handleTyping game =
     let word' = { word with typedCounter = word.typedCounter + increment }
     { game with words = word' :: (List.tail words); scoreForCurrentRound = game.scoreForCurrentRound + float(increment) }
 
-let drawText text color x y =
-  let centerX = getCenterPosition x text
-  Win.drawText text color font (centerX, y)
+let drawText (w, h) (x, y) text color =
+  let absoluteX = w * x
+  let centerAbsoluteX = getCenterPosition absoluteX text
+  let absoluteY = h * y
+  Win.drawText text color font (centerAbsoluteX, absoluteY)
 
 let drawScore (w, h) game =
   let passed = game.initialWordsCount - List.length game.words
@@ -105,14 +107,16 @@ let drawScore (w, h) game =
   let x' = fontSize * 5. + float(text'.Length)
   do Win.drawText text' blackColor font (x', y)
 
-let rec render (w, h) game (framesPerSecond: int) dispatch () =
+let rec render game (framesPerSecond: int) dispatch () =
+  let w, h = Win.dimensions()
+
   let scheduleRender game' =
-    window.setTimeout(render (w, h) game' framesPerSecond dispatch, int(1000. / float(framesPerSecond))) |> ignore
+    window.setTimeout(render game' framesPerSecond dispatch, 1000 / framesPerSecond) |> ignore
 
   match game with
   | Playing game ->
     match game.words with
-    | words when List.exists (fun x -> x.y > h) words ->
+    | words when List.exists (fun x -> x.y > (1.)) words ->
       Keyboard.clear()
       scheduleRender (EndFail game)
     | _ ->
@@ -129,7 +133,7 @@ let rec render (w, h) game (framesPerSecond: int) dispatch () =
           List.iter (fun word ->
             let fontColor = color word
             let text = displayText word
-            drawText text fontColor word.x word.y)
+            drawText (w, h) (word.x, word.y) text fontColor)
             words
           scheduleRender (Playing game')
       drawScore (w, h) game
@@ -137,7 +141,7 @@ let rec render (w, h) game (framesPerSecond: int) dispatch () =
   | EndFail game -> dispatch (Finish (EndFail game))
   | _ -> ()
 
-let w, h = Win.dimensions()
+
 do Keyboard.init()
 
 let init () : Model * Cmd<Msg> =
@@ -145,10 +149,10 @@ let init () : Model * Cmd<Msg> =
 
 let initGame (round: Round) score gameId gameType =
   let words' = round.words |> List.map (fun x ->
-          let rand = random (w/3.) (2. * w / 3.)
-          { x = rand; y  = 0. + fontSize; text = x; typedCounter = 0})
+    let rand = random (1./3.) (2./3.) // >= 1/3 and <= 2/3 of screen
+    { x = rand; y  = 0. + fontSize; text = x; typedCounter = 0})
   let maxVisibleWords = 5.
-  let margin = h / maxVisibleWords
+  let margin = 1. / maxVisibleWords
 
   let words'' = words' |> List.mapi (fun i word -> {word with y = 0. - float(i) * margin})
   {
@@ -176,7 +180,7 @@ let update msg model =
       model, Cmd.ofPromise promise [] (Ok >> StartGame) (Error >> StartGame)
   | StartGame (Ok game) ->
     let sub dispatch =
-      do render (w, h) (Playing game) game.framesPerSecond dispatch () 
+      do render (Playing game) game.framesPerSecond dispatch () 
     Playing game, Cmd.ofSub sub
   | StartGame (Error _) -> model, Cmd.none
   | GameStarted game -> game, Cmd.none
@@ -224,7 +228,7 @@ let buttonsContainerStyle =
     Display "flex"
   ]
 
-let startBtnId = "start-btn";
+let startBtnId = "start-btn"
 let getRound game =
   match game with
   | EndSuccess game -> game.currentRound + 1

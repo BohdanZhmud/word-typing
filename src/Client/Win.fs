@@ -6,6 +6,7 @@ open Fable.Import.Browser
 [<Emit("fullScreenCanvas")>]
 let fullScreenCanvas: unit -> unit = jsNative
 fullScreenCanvas()
+window.onresize <- fun _ -> fullScreenCanvas()
 
 let canvas = document.getElementsByTagName_canvas().[0]
 let context = canvas.getContext_2d()
