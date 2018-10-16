@@ -19,7 +19,7 @@ let private challenge (scheme : string) (redirectUri : string) : HttpHandler =
 let private googleAuth = challenge "Google" "/"
 let private githubAuth = challenge "GitHub" "/"
 let authApiRouter = router { get "/info" (fun next ctx -> 
-                                 task { 
+                                 task {
                                      let user =
                                          if ctx.User.Identity.IsAuthenticated then 
                                              let id =
@@ -35,7 +35,7 @@ let authApiRouter = router { get "/info" (fun next ctx ->
                                              { id = id.Value
                                                displayName = name.Value
                                                authState = Authenticated }
-                                         else 
+                                         else
                                              { id =
                                                    System.Guid.NewGuid()
                                                          .ToString()

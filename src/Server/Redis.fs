@@ -103,3 +103,11 @@ let getUser id =
         let x = JsonConvert.DeserializeObject(serializedUser.ToString())
         return (box x) :?> User
     }
+
+let storeWords words key =
+    task {
+        let key' = getKey key
+        let values = words |> List.map getValue |> List.toArray
+        let! _ = db.SetAddAsync(key', values)
+        return ()
+    }
