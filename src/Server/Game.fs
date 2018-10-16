@@ -60,26 +60,21 @@ let storeScore gameReplay userDisplayName =
                         valueToSet
                 return valueToSet
             }
-        return! gameReplay
-                |> validateReplay
-                |> Validation.bindT (fun _ -> 
-                       task { 
-                           let! r = match gameReplay.gameType with
-                                    | UsualGame -> 
-                                        setScore gameReplay 
-                                            (fun currentScore -> 
-                                            (currentScore 
-                                             + gameReplay.score.value))
-                                    | RestartLastRound -> 
-                                        let score = gameReplay.score
-                                        setScore gameReplay 
-                                            (fun currentScore -> 
-                                            (currentScore 
-                                             + (score.value 
-                                                * (1. 
-                                                   - Constants.percentageChargeForRestart))))
-                           return Valid(r)
-                       })
+        return!
+            gameReplay
+            |> validateReplay
+            |> Validation.bindT (fun _ -> 
+                   task { 
+                       let! r = match gameReplay.gameType with
+                                | UsualGame -> 
+                                    setScore gameReplay 
+                                        (fun currentScore -> currentScore + gameReplay.score.value)
+                                | RestartLastRound -> 
+                                    let score = gameReplay.score
+                                    setScore gameReplay 
+                                        (fun currentScore -> currentScore + (score.value * (1.- Constants.percentageChargeForRestart)))
+                       return Valid(r)
+                   })
     }
 
 let gameRouter =
