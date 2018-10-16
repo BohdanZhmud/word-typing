@@ -7,6 +7,7 @@ open Game
 open Auth
 open System.Security.Claims
 open System
+open Admin
 
 let publicPath = Path.GetFullPath "../Client/public"
 let port = 8085us
@@ -14,6 +15,7 @@ let port = 8085us
 let webApp = router {
   forward "/api/game" gameRouter
   forward "/api/auth" authApiRouter
+  forward "/api/admin" adminRouter
   forward "/auth" authRouter
 }
 
