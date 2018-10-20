@@ -1,0 +1,31 @@
+version: "3"
+services:
+  web:
+    image: bohdanzhmud/word-typing
+    ports:
+      - "80:8085"
+    environment:
+      - github_client_id=<change me>
+      - github_client_secret=<change me>
+      - google_client_id=<change me>
+      - google_client_secret=<change me>
+      - redis_connection_string=redis,abortConnect=false
+      - admins=<change me>
+    networks:
+      - redis-net
+    depends_on:
+      - redis
+    restart: always
+  redis:
+    image: redis:5.0.0
+    command: ["redis-server", "--appendonly", "yes"]
+    hostname: redis
+    networks:
+      - redis-net
+    volumes:
+      - redis-data:/data
+    restart: always
+
+networks: redis-net
+
+volumes: redis-data
