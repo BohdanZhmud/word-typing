@@ -31,6 +31,7 @@ type GameState = {
   framesPerSecond: int
   speed: float
   gameType: GameType
+  keyPressedTimestamps: int64 list
 }
 
 type Game =
@@ -78,16 +79,47 @@ let getCenterPosition x (text: string) =
   let centerTextMargin = float(text.Length) / 4. * fontSize
   x - centerTextMargin
 
+//60 in second
+//speed * 60 = speed per second in persentages %
+//speed of user = number of letters per page / letters typed / time
+//if speed of user > speed then speed = speed + (speed of user - speed) / 2 else speed
+
 let handleTyping game =
   match game.words with
   | [] -> game
   | words ->
     let word = List.head words
     let text = displayText word
-    let increment = if Keyboard.keyPresed (text.ToUpperInvariant()) then 1 else 0
-    if increment = 1 then do Keyboard.clear()
+    let pressedKey = text.ToUpperInvariant() |> Keyboard.keyPresed
+    let increment =
+        match pressedKey with
+        | Some _ ->
+            do Keyboard.clear()
+            1
+        | None _ -> 0
+    let keyPressedTimestamps =
+        match pressedKey with
+        | Some timestamp -> game.keyPressedTimestamps @ [timestamp]
+        | None -> game.keyPressedTimestamps
+    let speed =
+        match pressedKey with
+        | Some _ -> if (List.length keyPressedTimestamps % 5 = 0) then
+                       let last5KeyPressed : int64 list = keyPressedTimestamps |> List.rev |> List.take 5
+                       let last = last5KeyPressed |> List.head |> float
+                       let first = last5KeyPressed |> List.rev |> List.head |> float
+                       let difference = last - first
+                       let userSpeed = 5. / difference
+                       let currentSpeed = 5. * (float(game.framesPerSecond) / 1000. * game.speed)
+                       if userSpeed > currentSpeed then (currentSpeed + (currentSpeed - userSpeed) / 2.0) else currentSpeed + currentSpeed * 0.03
+                    else game.speed
+        | None -> game.speed
+
     let word' = { word with typedCounter = word.typedCounter + increment }
-    { game with words = word' :: (List.tail words); scoreForCurrentRound = game.scoreForCurrentRound + float(increment) }
+    { game with
+        words = word' :: (List.tail words)
+        scoreForCurrentRound = game.scoreForCurrentRound + float(increment)
+        keyPressedTimestamps = keyPressedTimestamps
+        speed = speed }
 
 let drawText (w, h) (x, y) text color =
   let absoluteX = w * x
@@ -106,7 +138,7 @@ let drawScore (w, h) game =
   let text' = sprintf "Round: %i" game.currentRound
   let x' = fontSize * 5. + float(text'.Length)
   do Win.drawText text' blackColor font (x', y)
-
+ 
 let rec render game (framesPerSecond: int) dispatch () =
   let w, h = Win.dimensions()
 
@@ -166,6 +198,7 @@ let initGame (round: Round) score gameId gameType =
     framesPerSecond = round.framesPerSecond
     speed = round.speed
     gameType = gameType
+    keyPressedTimestamps = []
   }
 
 let update msg model =

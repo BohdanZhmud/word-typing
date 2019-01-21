@@ -19,9 +19,9 @@ let private getRoundWorsSetKey =
     | _ -> sevenLetterSetKey
 
 let getRound round =
-    task { 
+    task {
         if (round < 1) then failwith (sprintf "incorrect round: %i" round)
-        let! words = getWords (getRoundWorsSetKey round) 20L
+        let! words = getWords (getRoundWorsSetKey round) 70L
         let speedInPixelsPer1000 =
             match round with
             | 1 -> 2.

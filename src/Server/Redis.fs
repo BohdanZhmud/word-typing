@@ -8,7 +8,7 @@ open Giraffe.Common
 open System.Threading.Tasks
 open Newtonsoft.Json
 
-let client = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable "redis_connection_string") 
+let client = ConnectionMultiplexer.Connect("localhost") 
 let private db = client.GetDatabase()
 let private getKey (key : string) = RedisKey.op_Implicit key
 let private getValue (value : string) = RedisValue.op_Implicit value
@@ -77,7 +77,7 @@ let sixLetterSetKey = "sixLetterWords:set"
 let sevenLetterSetKey = "sevenLetterWords:set"
 
 let validate words key =
-    task { 
+    task {
         let tasks =
             words 
             |> List.map 
