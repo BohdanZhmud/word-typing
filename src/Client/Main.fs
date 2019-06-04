@@ -37,7 +37,7 @@ let handleGameMsg msg model =
         match model.user with
         | Some user' ->
           let storeResultCmd = Cmd.ofMsg (Game.StoreScore {
-              words = game'.initialWords
+              words = game'.initialWords |> List.map (fun w -> w.text)
               round = game'.currentRound
               score = { userId = user'.id; value = game'.scoreForCurrentRound; gameId = game'.id }
               gameType = game'.gameType

@@ -32,11 +32,12 @@ type GameReplay = {
     gameType: GameType
 }
 
-type Round = {
-    words: string list
-    framesPerSecond: int
-    speed: float
-    number: int
+type Data = {
+    threeLettersWords: string list
+    fourLettersWords: string list
+    fiveLettersWords: string list
+    sixLettersWords: string list
+    sevenLettersWords: string list
 }
 
 module Constants =

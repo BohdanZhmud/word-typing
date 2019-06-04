@@ -1,6 +1,8 @@
 module Utils
 
-let rand = new System.Random()
+open System
+
+let rand = System.Random()
 
 let random max min = Fable.Import.JS.Math.random() * (max - min) + min;
 
@@ -19,4 +21,11 @@ let shuffleList l =
     do shuffle x
     Array.toList x
 
-let increment i = i + 1
+let increment = (+) 1
+
+let lastN n xs =
+    xs |> List.skip (List.length xs - abs n)
+
+let pow root x = Math.Pow(x, root)
+
+let inRange minimum maximum = max minimum >> min maximum

@@ -7,6 +7,7 @@ open Giraffe.Common
 open Saturn
 open Giraffe
 open System.Security.Claims
+open Redis
 
 let private framesPerSecond = 60
 
@@ -18,27 +19,22 @@ let private getRoundWorsSetKey =
     | 9 -> sixLetterSetKey
     | _ -> sevenLetterSetKey
 
-let getRound round =
-    task { 
-        if (round < 1) then failwith (sprintf "incorrect round: %i" round)
-        let! words = getWords (getRoundWorsSetKey round) 20L
-        let speedInPixelsPer1000 =
-            match round with
-            | 1 -> 2.
-            | 2 -> 3.
-            | 3 -> 2.5
-            | 4 -> 2.7
-            | 5 -> 2.9
-            | 6 -> 3.2
-            | 7 -> 2.2
-            | 8 -> 2.8
-            | 9 -> 2.8
-            | round' -> (1. + float (round') / 4.)
-        return { number = round
-                 words = words
-                 framesPerSecond = framesPerSecond
-                 speed = speedInPixelsPer1000 / 1000. }
+let private getWords = task {
+    let! threeLettersWords = getWords threeLetterSetKey 30L
+    let! fourLettersWords = getWords fourLetterSetKey 30L
+    let! fiveLettersWords = getWords fiveLetterSetKey 30L
+    let! sixLettersWords = getWords sixLetterSetKey 30L
+    let! sevenLettersWords = getWords sevenLetterSetKey 30L
+
+    return {
+        threeLettersWords = threeLettersWords
+        fourLettersWords = fourLettersWords
+        fiveLettersWords = fiveLettersWords
+        sixLettersWords = sixLettersWords
+        sevenLettersWords = sevenLettersWords
     }
+}
+
 
 let private validateReplay (gameReplay : GameReplay) =
     match gameReplay.gameType with
@@ -84,9 +80,9 @@ let storeScore gameReplay userDisplayName =
 
 let gameRouter =
     router { 
-        getf "/round/%i" 
-            (fun round next ctx -> task { let! words = getRound round
-                                          return! Successful.OK words next ctx })
+        get "/data" 
+            (fun next ctx -> task { let! words = getWords
+                                    return! Successful.OK words next ctx })
         get "/rating" 
             (fun next ctx -> task { let! rating = getRating()
                                     return! Successful.OK rating next ctx })
