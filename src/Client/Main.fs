@@ -91,7 +91,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
   | None -> str "Loading..."
   | Some _ ->
     match model.game with
-    | Game.Playing _ -> str ""
+    | Game.Playing _ -> Game.view model.game (GameMsg >> dispatch)
     | _ ->
       div [containerStyle] [
         div [top] [ 

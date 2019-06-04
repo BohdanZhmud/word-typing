@@ -62,6 +62,7 @@ type Msg =
 
   | StoreScore of GameReplay
   | StoredScore of Result<float, exn>
+  | Tick
 
 type Model = Game
 
@@ -218,58 +219,40 @@ let handleTyping game =
           minimumSpeed = game.speed
           desiredMaxVisibleWords = maxVisibleWords
           desirableLettersCount = lettersCount }
-
-let drawText (w, h) (x, y) text color =
-  let absoluteX = w * x
-  let centerAbsoluteX = getCenterPosition absoluteX text
-  let absoluteY = h * y
-  Win.drawText text color font (centerAbsoluteX, absoluteY)
-
-let drawScore (w, h) game =
-  let passed = game.initialWordsCount - List.length game.words
-  let total = game.initialWordsCount
-  let text = sprintf "%i/%i" passed total
-  let y = fontSize * 2.;
-  let x = w - float(text.Length) * fontSize - fontSize * 5.
-  do Win.drawText text blackColor font (x, y)
-
-  let text' = sprintf "Round: %i" game.currentRound
-  let x' = fontSize * 5. + float(text'.Length)
-  do Win.drawText text' blackColor font (x', y)
  
-let rec render game (framesPerSecond: int) dispatch () =
-  let w, h = Win.dimensions()
+// let rec render game (framesPerSecond: int) dispatch () =
+//   let w, h = Win.dimensions()
 
-  let scheduleRender game' =
-    window.setTimeout(render game' framesPerSecond dispatch, 1000 / framesPerSecond) |> ignore
+//   let scheduleRender game' =
+//     window.setTimeout(render game' framesPerSecond dispatch, 1000 / framesPerSecond) |> ignore
 
-  match game with
-  | Playing game ->
-    match game.words with
-    | words when List.exists (fun x -> x.y > (1.)) words ->
-      Keyboard.clear()
-      scheduleRender (EndFail game)
-    | _ ->
-      let game' =
-        game
-        |> handleTyping
-        |> move
-      match game'.words with
-        | [] ->
-          Keyboard.clear()
-          scheduleRender (EndSuccess game')
-        | words ->
-          Win.clear()
-          List.iter (fun word ->
-            let fontColor = color word
-            let text = displayText word
-            drawText (w, h) (word.x, word.y) text fontColor)
-            words
-          scheduleRender (Playing game')
-      drawScore (w, h) game
-  | EndSuccess game -> dispatch (Finish (EndSuccess game))
-  | EndFail game -> dispatch (Finish (EndFail game))
-  | _ -> ()
+//   match game with
+//   | Playing game ->
+//     match game.words with
+//     | words when List.exists (fun x -> x.y > (1.)) words ->
+//       Keyboard.clear()
+//       scheduleRender (EndFail game)
+//     | _ ->
+//       let game' =
+//         game
+//         |> handleTyping
+//         |> move
+//       match game'.words with
+//         | [] ->
+//           Keyboard.clear()
+//           scheduleRender (EndSuccess game')
+//         | words ->
+//           Win.clear()
+//           List.iter (fun word ->
+//             let fontColor = color word
+//             let text = displayText word
+//             drawText (w, h) (word.x, word.y) text fontColor)
+//             words
+//           scheduleRender (Playing game')
+//       drawScore (w, h) game
+//   | EndSuccess game -> dispatch (Finish (EndSuccess game))
+//   | EndFail game -> dispatch (Finish (EndFail game))
+//   | _ -> ()
 
 
 do Keyboard.init()
@@ -307,6 +290,8 @@ let initGame (data: Data) score gameId gameType =
   }
 
 let update msg model =
+  let tick dispatch =
+      do window.setTimeout((fun _ -> dispatch Tick), 1000 / 50) |> ignore
   match msg with
   | LoadGame (round, score, gameId, gameType) ->
     match model with
@@ -316,10 +301,20 @@ let update msg model =
         Fetch.fetchAs<Data>("/api/game/data") []
         |> Promise.map (fun x -> initGame x score gameId gameType)
       model, Cmd.ofPromise promise [] (Ok >> StartGame) (Error >> StartGame)
-  | StartGame (Ok game) ->
-    let sub dispatch =
-      do render (Playing game) game.framesPerSecond dispatch () 
-    Playing game, Cmd.ofSub sub
+  | StartGame (Ok game) -> Playing game, Cmd.ofSub tick
+  | Tick ->
+    match model with
+    | Playing game ->
+      match game.words with
+      | words when List.exists (fun x -> x.y > (1.)) words ->
+        EndFail game, Cmd.none
+      | _ ->
+        let game' =
+          game
+          |> handleTyping
+          |> move
+        Playing game', Cmd.ofSub tick
+    | _ -> model, Cmd.none
   | StartGame (Error _) -> model, Cmd.none
   | GameStarted game -> game, Cmd.none
   | Finish gameState -> gameState, Cmd.none 
@@ -343,6 +338,24 @@ let update msg model =
       | _ -> model
     model', Cmd.none
   | _ -> model, Cmd.none
+
+let drawText (w, h) (x, y) text color =
+  let absoluteX = w * x
+  let centerAbsoluteX = getCenterPosition absoluteX text
+  let absoluteY = h * y
+  Win.drawText text color font (centerAbsoluteX, absoluteY)
+
+let drawScore (w, h) game =
+  let passed = game.initialWordsCount - List.length game.words
+  let total = game.initialWordsCount
+  let text = sprintf "%i/%i" passed total
+  let y = fontSize * 2.;
+  let x = w - float(text.Length) * fontSize - fontSize * 5.
+  do Win.drawText text blackColor font (x, y)
+
+  let text' = sprintf "Round: %i" game.currentRound
+  let x' = fontSize * 5. + float(text'.Length)
+  do Win.drawText text' blackColor font (x', y)
 
 let getText model =
   match model with
@@ -406,13 +419,33 @@ let getStartGameButtons model dispatch =
   | _ -> [ str "" ]
 
 let view (model : Game) (dispatch : Msg -> unit) =
+  let w, h = Win.dimensions()
   let buttons = getStartGameButtons model dispatch
   match model with
   | EndSuccess _ | EndFail _ | NotStarted | Loading | Loaded (Error _) ->
     div [containerStyle]
       [ span [ Class "is-size-4" ] [ str (getText model) ];
         div [buttonsContainerStyle] buttons]
-  | _ -> str ""
+  | Playing game ->
+    match game.words with
+    | words when List.exists (fun x -> x.y > (1.)) words ->
+      do Keyboard.clear()
+      str ""
+    | words ->
+      match words with
+      | [] -> str ""
+      | _ ->
+        printfn "drawing"
+        Win.clear()
+        List.iter (fun word ->
+          let fontColor = color word
+          let text = displayText word
+          drawText (w, h) (word.x, word.y) text fontColor)
+          words
+        drawScore (w, h) game
+        str ""
+  | _ ->
+    str ""
 
 document.addEventListener_keydown(fun e ->
   let enter = 13.
