@@ -219,45 +219,9 @@ let handleTyping game =
           minimumSpeed = game.speed
           desiredMaxVisibleWords = maxVisibleWords
           desirableLettersCount = lettersCount }
- 
-// let rec render game (framesPerSecond: int) dispatch () =
-//   let w, h = Win.dimensions()
-
-//   let scheduleRender game' =
-//     window.setTimeout(render game' framesPerSecond dispatch, 1000 / framesPerSecond) |> ignore
-
-//   match game with
-//   | Playing game ->
-//     match game.words with
-//     | words when List.exists (fun x -> x.y > (1.)) words ->
-//       Keyboard.clear()
-//       scheduleRender (EndFail game)
-//     | _ ->
-//       let game' =
-//         game
-//         |> handleTyping
-//         |> move
-//       match game'.words with
-//         | [] ->
-//           Keyboard.clear()
-//           scheduleRender (EndSuccess game')
-//         | words ->
-//           Win.clear()
-//           List.iter (fun word ->
-//             let fontColor = color word
-//             let text = displayText word
-//             drawText (w, h) (word.x, word.y) text fontColor)
-//             words
-//           scheduleRender (Playing game')
-//       drawScore (w, h) game
-//   | EndSuccess game -> dispatch (Finish (EndSuccess game))
-//   | EndFail game -> dispatch (Finish (EndFail game))
-//   | _ -> ()
-
-
-do Keyboard.init()
 
 let init () : Model * Cmd<Msg> =
+  do Keyboard.init()
   NotStarted, Cmd.none
 
 let initGame (data: Data) score gameId gameType =
@@ -266,7 +230,6 @@ let initGame (data: Data) score gameId gameType =
   let maxVisibleWords = 3.
   let margin = 1. / maxVisibleWords
   let words' = initWords margin words
-  printfn "init"
   {
     words = words'
     initialWords = words'
@@ -419,6 +382,7 @@ let getStartGameButtons model dispatch =
   | _ -> [ str "" ]
 
 let view (model : Game) (dispatch : Msg -> unit) =
+  let canvasView = str "" // TODO: canvas is rendered outside react element, take a look at react-canvas to use instead
   let w, h = Win.dimensions()
   let buttons = getStartGameButtons model dispatch
   match model with
@@ -430,7 +394,7 @@ let view (model : Game) (dispatch : Msg -> unit) =
     match game.words with
     | words when List.exists (fun x -> x.y > (1.)) words ->
       do Keyboard.clear()
-      str ""
+      canvasView
     | words ->
       match words with
       | [] -> str ""
@@ -443,7 +407,7 @@ let view (model : Game) (dispatch : Msg -> unit) =
           drawText (w, h) (word.x, word.y) text fontColor)
           words
         drawScore (w, h) game
-        str ""
+        canvasView
   | _ ->
     str ""
 
