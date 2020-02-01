@@ -36,13 +36,13 @@ let handleGameMsg msg model =
       | Game.EndSuccess game' | Game.EndFail game' ->
         match model.user with
         | Some user' ->
-          let storeResultCmd = Cmd.ofMsg (Game.StoreScore {
-              words = game'.initialWords |> List.map (fun w -> w.text)
-              round = game'.currentRound
-              score = { userId = user'.id; value = game'.scoreForCurrentRound; gameId = game'.id }
-              gameType = game'.gameType
-            })
-          Cmd.map GameMsg storeResultCmd
+          // let storeResultCmd = Cmd.ofMsg (Game.StoreScore {
+          //     words = game'.initialWords |> List.map (fun w -> w.text)
+          //     round = game'.currentRound
+          //     score = { userId = user'.id; value = game'.scoreForCurrentRound; gameId = game'.id }
+          //     gameType = game'.gameType
+          //   })
+          Cmd.map GameMsg Cmd.none
         | _ -> Cmd.none
       | _ -> Cmd.none
     | Game.StoredScore (Ok _) -> Cmd.map RatingMsg (Cmd.ofMsg Rating.Loading)

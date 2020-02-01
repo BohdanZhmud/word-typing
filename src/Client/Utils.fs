@@ -29,3 +29,11 @@ let lastN n xs =
 let pow root x = Math.Pow(x, root)
 
 let inRange minimum maximum = max minimum >> min maximum
+
+let joinMap map1 map2 = Map.fold (fun acc key value ->
+     let existingValue = acc |> Map.tryFind key
+     let result =
+       match existingValue with
+       | Some xs -> xs @  value
+       | None -> value
+     Map.add key result acc) map1 map2

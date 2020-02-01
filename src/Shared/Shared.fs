@@ -32,13 +32,9 @@ type GameReplay = {
     gameType: GameType
 }
 
-type Data = {
-    threeLettersWords: string list
-    fourLettersWords: string list
-    fiveLettersWords: string list
-    sixLettersWords: string list
-    sevenLettersWords: string list
-}
+type LettersCount = ThreeLetters | FourLetters | FiveLetters | SixLetters | SevenLetters | EightLetters | NineLetters
+
+type Data = Map<LettersCount, string list>
 
 module Constants =
     let guestName = "Guest"

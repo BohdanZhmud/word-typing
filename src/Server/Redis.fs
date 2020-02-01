@@ -62,7 +62,7 @@ let getUserScore (userId : string) userDisplayName gameId =
     }
 
 let getWords setKey count =
-    task { 
+    task {
         let key = getKey setKey
         let! values = db.SetRandomMembersAsync(key, count)
         return values
@@ -75,6 +75,8 @@ let fourLetterSetKey = "fourLetterWords:set"
 let fiveLetterSetKey = "fiveLetterWords:set"
 let sixLetterSetKey = "sixLetterWords:set"
 let sevenLetterSetKey = "sevenLetterWords:set"
+let eightLetterSetKey = "eightLetterWords:set"
+let nineLettersSetKey = "nineLetterWords:set"
 
 let validate words key =
     task {

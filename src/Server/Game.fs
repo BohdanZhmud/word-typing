@@ -8,6 +8,8 @@ open Saturn
 open Giraffe
 open System.Security.Claims
 open Redis
+open Redis
+open Redis
 
 let private framesPerSecond = 60
 
@@ -19,20 +21,23 @@ let private getRoundWorsSetKey =
     | 9 -> sixLetterSetKey
     | _ -> sevenLetterSetKey
 
-let private getWords = task {
-    let! threeLettersWords = getWords threeLetterSetKey 30L
-    let! fourLettersWords = getWords fourLetterSetKey 30L
-    let! fiveLettersWords = getWords fiveLetterSetKey 30L
-    let! sixLettersWords = getWords sixLetterSetKey 30L
-    let! sevenLettersWords = getWords sevenLetterSetKey 30L
+let private getWords _ = task {
+    //System.Threading.Tasks.Task.Delay(System.TimeSpan.FromSeconds(3.)).GetAwaiter().GetResult()
+    let! threeLettersWords = getWords threeLetterSetKey 50L
+    let! fourLettersWords = getWords fourLetterSetKey 50L
+    let! fiveLettersWords = getWords fiveLetterSetKey 50L
+    let! sixLettersWords = getWords sixLetterSetKey 50L
+    let! sevenLettersWords = getWords sevenLetterSetKey 50L
+    let! eightLettersWords = getWords eightLetterSetKey 50L
+    let! nineLettersWords = getWords nineLettersSetKey 50L
 
-    return {
-        threeLettersWords = threeLettersWords
-        fourLettersWords = fourLettersWords
-        fiveLettersWords = fiveLettersWords
-        sixLettersWords = sixLettersWords
-        sevenLettersWords = sevenLettersWords
-    }
+    return [ ThreeLetters, threeLettersWords
+             FourLetters, fourLettersWords
+             FiveLetters, fiveLettersWords
+             SixLetters, sixLettersWords
+             SevenLetters, sevenLettersWords 
+             EightLetters, eightLettersWords
+             NineLetters, nineLettersWords ] |> Map.ofList
 }
 
 
@@ -81,7 +86,7 @@ let storeScore gameReplay userDisplayName =
 let gameRouter =
     router { 
         get "/data" 
-            (fun next ctx -> task { let! words = getWords
+            (fun next ctx -> task { let! words = getWords ()
                                     return! Successful.OK words next ctx })
         get "/rating" 
             (fun next ctx -> task { let! rating = getRating()

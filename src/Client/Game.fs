@@ -10,33 +10,35 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
 open Fable.PowerPack
-open Shared
 open System
+open Keyboard
 
-type Word = {
+type Coordinates = {
   x: float
   y: float
+}
+
+type WordWithText = {
+  coordinates: Coordinates
   text: string
   typedCounter: int
 }
+
+type Word =
+  | NotVisibleWord of Coordinates
+  | VisibleWord of WordWithText
 
 type GameState = {
   initialWords: Word list
   initialWordsCount: int
   words: Word list
 
-  currentMaxVisibleWords: float
-  desiredMaxVisibleWords: float
-
-  desirableLettersCount: float
-  currentLettersCount: float
-
   currentRound: int
   totalScore: float
   scoreForCurrentRound: float
-  id: string
+  id: string  
   framesPerSecond: int
-  speed: float
+  koefStore: (float * float) list
   speedUpdated: DateTimeOffset
   minimumSpeed: float
   gameType: GameType
@@ -55,16 +57,30 @@ type Game =
 
 
 type Msg =
-  | LoadGame of int * float * string * GameType
-  | StartGame of Result<GameState, exn>
+  | LoadData of int * float * string * GameType
+  | LoadedData of Result<GameState, exn>
   | GameStarted of Game
   | Finish of Game
 
   | StoreScore of GameReplay
   | StoredScore of Result<float, exn>
   | Tick
+  | KeyPressed of KeyType
 
 type Model = Game
+
+let minSpeed = 0.0015
+let maxSpeed = 0.0055
+let minVisibleWords = 3.
+let maxVisibleWords = 3.125
+let minLettersCount = 3.
+let maxLettersCount = 9.
+
+let getSpeed game = game.koefStore |> List.last |> fst |> (*) minSpeed |> inRange minSpeed maxSpeed
+let getVisibleWords game = game.koefStore |> List.last |> fst |> (*) minVisibleWords |> inRange minVisibleWords maxVisibleWords
+let getLettersCount game = game.koefStore |> List.last |> fst |> (*) minLettersCount |> Math.Ceiling |> inRange minLettersCount maxLettersCount
+
+let WORDS_COUNT = 50
 
 let fontSize = 30.
 
@@ -76,174 +92,213 @@ let color = function
 let fontFamily = "Segoe UI,Roboto,Oxygen,Ubuntu,Cantarell,Fira Sans,Droid Sans,Helvetica Neue,Helvetica,Arial,sans-serif"
 let font = sprintf "%ipx %s" (int(fontSize)) fontFamily
 
-let popWords data length count =
-  let words, data =
-    match length with
-    | 3 -> (data.threeLettersWords |> List.take count, { data with threeLettersWords = data.threeLettersWords |> List.skip count })
-    | 4 -> (data.fourLettersWords |> List.take count, { data with fourLettersWords = data.fourLettersWords |> List.skip count }) 
-    | 5 -> (data.fiveLettersWords |> List.take count, { data with fiveLettersWords = data.fiveLettersWords |> List.skip count })
-    | 6 -> (data.fiveLettersWords |> List.take count, { data with  fiveLettersWords = data.fiveLettersWords |> List.skip count })
-    | 7 -> (data.sevenLettersWords |> List.take count, { data with sevenLettersWords = data.sevenLettersWords |> List.skip count })
-    | _ -> failwith "incorrect length"
-  (words, data)
+let popTexts data length count =
+  match data |> Map.tryFind length with
+  | Some value -> 
+    let r = if value |> List.length >= count then value |> List.take count |> Some else None
+    match r with 
+    | Some x -> (Some x, data |> Map.add length (value |> List.skip count))
+    | None -> (None, data)
+  | None -> (None, data)
 
-let pushWords data words l =
-  match l with
-  | 3 -> { data with threeLettersWords = words @ data.threeLettersWords }
-  | 4 -> { data with fourLettersWords = words @ data.fourLettersWords }
-  | 5 -> { data with fiveLettersWords = words @ data.fiveLettersWords }
-  | 6 -> { data with fiveLettersWords = words @ data.fiveLettersWords }
-  | 7 -> { data with sevenLettersWords = words @ data.sevenLettersWords }
-  | _ -> failwith "incorrect length"
+let initWords margin count =
+  let rand = random (1./3.) (2./3.) // >= 1/3 and <= 2/3 of screen
+  { x = rand; y  = 0. }
+  |> List.replicate count
+  |> List.mapi (fun i word -> { word with y = 0. - float(i) * margin })
 
-let initWords margin =
-  List.map (fun x ->
-    let rand = random (1./3.) (2./3.) // >= 1/3 and <= 2/3 of screen
-    { x = rand; y  = 0.; text = x; typedCounter = 0 })
-  >> List.mapi (fun i word -> { word with y = 0. - float(i) * margin })
+let displayText word = word.text.Substring(word.typedCounter, String.length word.text - word.typedCounter)
 
-let displayText word = word.text.Substring(word.typedCounter, word.text.Length - word.typedCounter)
-let move game =
-  let margin = game.speed
-  let notTyped = displayText >> String.length >> (=) 0 >> not
-  let notTypedOnly =
-    game.words
-    |> List.map (fun word -> { word with y = word.y + margin})
-    |> List.filter notTyped
+let filterOutTypedWords game =
+  let words = game.words |> List.filter (fun x ->
+    match x with
+    | NotVisibleWord _ -> true
+    | VisibleWord y when y |> displayText |> String.length |> (fun x -> x > 0) -> true
+    | VisibleWord _ -> false)
+  { game with words = words }
 
-  let splitByVisibility words =
-    let isVisible word = word.y > 0.
-    let index = words |> List.tryFindIndex (isVisible >> not)
-    match index with
-    | Some x -> words |> List.splitAt x
-    | None -> (words, [])
+let getY word =
+  match word with
+  | NotVisibleWord w -> w.y
+  | VisibleWord w -> w.coordinates.y
 
-  let minVisibleWords = 3.
-  let maxVisibleWords = 5.
-  let desiredMaxVisibleWords = game.desiredMaxVisibleWords |> inRange minVisibleWords maxVisibleWords
-
-  let minLettersCount = 3
-  let maxLettersCount = 7
-  let desirableLettersCount = game.desirableLettersCount |> int |> inRange minLettersCount maxLettersCount
-  let currentLettersCount = game.currentLettersCount |> int
-  let words', data =
-    match notTypedOnly with
-    | [] ->
-      let words, data = popWords game.data desirableLettersCount 5
-      (initWords (1. / desiredMaxVisibleWords) words, data)
+let calculateMinimumRequiredSpeed game =
+  let speed = getSpeed game
+  let wordsCount = game.words |> List.length |> float
+  let currentSpeed = // letters per sec
+    match speed with
+    | 0. -> 0.
     | _ ->
-      let words, data = 
-        let visible, notVisible = notTypedOnly |> splitByVisibility
-        let texts = notVisible |> List.map (fun x -> x.text)
-        let data' = pushWords game.data texts currentLettersCount
-        let newTexts, data'' = popWords data' desirableLettersCount (List.length notVisible)
+      let avarageLettersPerWordCount =
+        let sum =
+          game.words
+          |> List.sumBy (fun x -> 
+            match x with
+            | NotVisibleWord _ -> getLettersCount game
+            | VisibleWord w -> String.length w.text - w.typedCounter |> float)
+        sum / wordsCount
+      avarageLettersPerWordCount / ((1000 / game.framesPerSecond |> float) / speed)
+  match currentSpeed with
+  | 0. -> 0.
+  | _ ->
+    let margin, last =
+      match game.words with
+      | [] -> 0., 0.
+      | [head] -> 0., (1. - (head |> getY))
+      | head :: tail -> head |> getY, tail |> List.map getY |> List.last |> (-) 1. |> abs
+    currentSpeed / ((last - margin) / wordsCount)
 
-        let notVisible' = List.zip notVisible newTexts |> List.map (fun (x, y) -> { x with text = y })
-        (visible @ notVisible', data'')
+let move game =
+  match game.words with
+  | [] ->
+    let margin = 1. / getVisibleWords game
+    let minimumRequiredSpeed = calculateMinimumRequiredSpeed game
+    let koef, minimumRequiredSpeed' = game.koefStore |> List.last
+    { game with words = initWords margin WORDS_COUNT |> List.map NotVisibleWord; koefStore = [game.koefStore |> List.last |> (fun x -> fst x / 10., snd x) ] }
+  | _ ->
+    let changeMarginBetweenWords margin word =
+      match word with
+      | NotVisibleWord w when w.y < 0. -> NotVisibleWord { w with y = min (w.y - margin) 0.}
+      | _ -> word
+    let moveWordDown margin word =
+      let moveDown c = { c with y = c.y + margin }
+      match word with
+      | NotVisibleWord c -> NotVisibleWord ( moveDown c)
+      | VisibleWord w -> VisibleWord { w with coordinates = moveDown w.coordinates }
 
-      let words' =
-        let visible, notVisible = words |> splitByVisibility
-        let margin = 1. / desiredMaxVisibleWords - 1. / game.currentMaxVisibleWords
-        visible @ (notVisible |> List.map (fun x -> { x with y = min (x.y - margin) 0.}))
-      (words', data)
+    let pair =
+        game.words
+        |> List.pairwise
+        |> List.filter (fun (x, y) ->
+          match (x, y) with
+          | (VisibleWord _, NotVisibleWord _) -> true
+          | (NotVisibleWord _, NotVisibleWord _) -> true
+          | _ -> false)
+        |> List.tryHead
+    let changeMargin =
+      match pair with
+      | Some (VisibleWord w1, NotVisibleWord w2)  ->
+        let currentMargin = w1.coordinates.y - w2.y
+        let desiredMargin = 1. / (getVisibleWords game)
+        let difference = desiredMargin - currentMargin
+        max w2.y difference
+      | Some (NotVisibleWord w1, NotVisibleWord w2)  ->
+        let currentMargin = w1.y - w2.y
+        let desiredMargin = 1. / (getVisibleWords game)
+        let difference = desiredMargin - currentMargin
+        max w1.y difference
+      | _ -> 0.
+    let speed = getSpeed game
+    let words =
+      game.words
+      |> List.map (changeMarginBetweenWords changeMargin >> moveWordDown speed)
+    let words' =
+      match words with
+      | [] -> words
+      | head :: _ ->
+        let margin =
+          match head with
+          | NotVisibleWord w when w.y < 0. -> -w.y
+          | _ -> 0.
+        words |> List.map (moveWordDown margin)
+    { game with words = words' }
 
-  let head = words' |> List.head
-  let margin = if (head.y < 0.) then -head.y else 0.
-  let words'' = words' |> List.map (fun x -> { x with y = x.y + margin })
-  { game with words = words''; data = data; currentLettersCount = desirableLettersCount |> float; currentMaxVisibleWords = desiredMaxVisibleWords }
+let setTexts game =
+  let setText (data, words) word =
+    match word with
+    | NotVisibleWord c when c.y >= 0. ->
+      let desirableLettersCount = getLettersCount game
+      let length =
+        match desirableLettersCount with
+        | 3. -> ThreeLetters
+        | 4. -> FourLetters
+        | 5. -> FiveLetters
+        | 6. -> SixLetters
+        | 7. -> SevenLetters
+        | 8. -> EightLetters
+        | 9. -> EightLetters
+        | _ -> failwith "Not expected letters count"
+      let text, data' = popTexts game.data length 1
+      match text with
+      | Some text' -> data', words @ [VisibleWord { coordinates = c; text = text' |> List.head; typedCounter = 0 }]
+      | None -> data', words @ [NotVisibleWord c]
+    | _ -> data, words @ [word]
+  let r = game.words |> List.fold setText (game.data, [])
+  { game with words = snd r; data = fst r }
 
 let getCenterPosition x (text: string) =
   let centerTextMargin = float(text.Length) / 4. * fontSize
   x - centerTextMargin
 
-let handleTyping game =
+let handleTyping pressedKey game =
   match game.words with
   | [] -> game
-  | words ->
-      let word = List.head words
+  | w :: tail ->
+    match w with
+    | VisibleWord word ->
       let text = displayText word
-      let pressedKey = text.ToUpperInvariant() |> Keyboard.keyPresed
       let increment =
           match pressedKey with
-          | Some _ ->
-              do Keyboard.clear()
+          | Some key when (String.length text > 0) && text.ToUpper().StartsWith(key)  ->
               1
-          | None _ -> 0
-      let keyPressedTimestamps =
-          match pressedKey with
-          | Some timestamp -> game.keyPressedTimestamps @ [timestamp]
-          | None -> game.keyPressedTimestamps
-      let userSpeed last first count =
-        let difference = (last - first) / float(TimeSpan.TicksPerMillisecond)
-        count / difference
+          | _ -> 0
+      match pressedKey, increment  with
+      | (Some _, 0) -> game
+      | _ ->
+        let keyPressedTimestamps =
+            match pressedKey with
+            | Some _ -> game.keyPressedTimestamps @ [DateTimeOffset.UtcNow.Ticks]
+            | None -> game.keyPressedTimestamps
+        let userSpeed last first count =
+          let difference = (last - first) / float(TimeSpan.TicksPerMillisecond)
+          count / difference
 
-      let (speed, maxVisibleWords, lettersCount, updated) =
-        match (keyPressedTimestamps, game.speedUpdated) with
-        | (_, updated) when (updated > DateTimeOffset.UtcNow.Subtract(TimeSpan.FromMilliseconds(100.))) -> (game.speed, game.desiredMaxVisibleWords, game.desirableLettersCount, game.speedUpdated)
-        | ([], _) | ([_], _) -> (game.speed, game.desiredMaxVisibleWords, game.desirableLettersCount, game.speedUpdated)
-        | _ ->
-          let keyPressedTimestamps' = keyPressedTimestamps |> lastN 20
-          let first = keyPressedTimestamps' |> List.head |> float
-          let last = keyPressedTimestamps' |> List.last |> float
-          let userSpeed =
-            min
-              (userSpeed last first (float(keyPressedTimestamps'.Length)))
-              (userSpeed (float(DateTimeOffset.UtcNow.Ticks)) first (float(keyPressedTimestamps'.Length + 1)))
-          let currentSpeed = game.desirableLettersCount / ((1000 / game.framesPerSecond |> float) / game.speed)
-          let wordsNumber = game.words.Length |> float
-          let margin, last =
-            match game.words with
-            | [] -> (0., 0.)
-            | [head] -> (1., (1. - head.y))
-            | head :: tail -> (head.y, tail |> List.map (fun x -> x.y) |> List.last |> abs)
-          let minumumRequiredSpeed = currentSpeed / ((1. + last - margin) / wordsNumber)
+        let koef, updated =
+          match (keyPressedTimestamps, game.speedUpdated) with
+          | ([], _) | ([_], _) -> game.koefStore, game.speedUpdated
+          | _ ->
+            let keyPressedTimestamps' = keyPressedTimestamps |> lastN 20
+            let first = keyPressedTimestamps' |> List.head |> float
+            let last = keyPressedTimestamps' |> List.last |> float
+            let userSpeed =
+              min
+                (userSpeed last first (float(keyPressedTimestamps'.Length)))
+                (userSpeed (float(DateTimeOffset.UtcNow.Ticks)) first (float(keyPressedTimestamps'.Length + 1)))
 
-          // let maxSpeed = 0.001
-          // let minSpeed = 0.00003
-          let changePercentage =  userSpeed / minumumRequiredSpeed |> pow (1. / 3.)
+            let minumumRequiredSpeed = calculateMinimumRequiredSpeed game
+            match minumumRequiredSpeed with
+            | 0. -> game.koefStore, game.speedUpdated
+            | _ ->
+              let changePercentage =  userSpeed / minumumRequiredSpeed |> pow (1. / 3.)
+              let koef = game.koefStore |> List.last |> fst
+              [(changePercentage * koef, minumumRequiredSpeed)], DateTimeOffset.UtcNow
 
-          let desiredVisibleWords =
-            game.desiredMaxVisibleWords * changePercentage
-
-          let desiredLettersCount =
-            game.desirableLettersCount * changePercentage
-
-          (game.speed * changePercentage, desiredVisibleWords, desiredLettersCount, DateTimeOffset.UtcNow)
-
-      let word' = { word with typedCounter = word.typedCounter + increment }
-      { game with
-          words = word' :: (List.tail words)
-          scoreForCurrentRound = game.scoreForCurrentRound + float(increment)
-          keyPressedTimestamps = keyPressedTimestamps
-          speed = speed
-          minimumSpeed = game.speed
-          desiredMaxVisibleWords = maxVisibleWords
-          desirableLettersCount = lettersCount }
+        let word' = VisibleWord { word with typedCounter = word.typedCounter + increment }
+        { game with
+            words = word' :: tail
+            koefStore = koef
+            scoreForCurrentRound = game.scoreForCurrentRound + float(increment)
+            keyPressedTimestamps = keyPressedTimestamps |> lastN 20 }
+    | _ -> game
 
 let init () : Model * Cmd<Msg> =
   do Keyboard.init()
   NotStarted, Cmd.none
 
 let initGame (data: Data) score gameId gameType =
-  let words, data = popWords data 3 5 
-
   let maxVisibleWords = 3.
   let margin = 1. / maxVisibleWords
-  let words' = initWords margin words
-  {
+  let words' = initWords margin WORDS_COUNT |> List.map NotVisibleWord
+  let game = {
     words = words'
     initialWords = words'
     initialWordsCount = 100
-    currentMaxVisibleWords = maxVisibleWords
-    desiredMaxVisibleWords = maxVisibleWords
-    desirableLettersCount = 3.
-    currentLettersCount = 3.
     currentRound = 0
     scoreForCurrentRound = 0.
     totalScore = score
     id = gameId
-    framesPerSecond =  50 //round.framesPerSecond
-    speed = 2. / 1000.
+    framesPerSecond =  60
+    koefStore = [(1., 0.)]
     speedUpdated = DateTimeOffset.UtcNow
     minimumSpeed = 2. / 1000.
     gameType = gameType
@@ -251,34 +306,58 @@ let initGame (data: Data) score gameId gameType =
     data = data
     started = DateTimeOffset.UtcNow
   }
+  let minimumRequiredSpeed = calculateMinimumRequiredSpeed game
+  {game with koefStore = [(1., minimumRequiredSpeed)]}
 
 let update msg model =
   let tick dispatch =
-      do window.setTimeout((fun _ -> dispatch Tick), 1000 / 50) |> ignore
+      do window.setTimeout((fun _ -> dispatch Tick), 1000 / 60) |> ignore
   match msg with
-  | LoadGame (round, score, gameId, gameType) ->
+  | LoadData (round, score, gameId, gameType) ->
     match model with
     | Loading -> model, Cmd.none
+    | Playing game ->
+      let promise _ =
+        Fetch.fetchAs<Data>("/api/game/data") []
+        |> Promise.map (fun x -> { game with data = joinMap game.data x })
+      model, Cmd.ofPromise promise [] (Ok >> LoadedData) (Error >> LoadedData)
     | _ ->
       let promise _ =
         Fetch.fetchAs<Data>("/api/game/data") []
         |> Promise.map (fun x -> initGame x score gameId gameType)
-      model, Cmd.ofPromise promise [] (Ok >> StartGame) (Error >> StartGame)
-  | StartGame (Ok game) -> Playing game, Cmd.ofSub tick
+      model, Cmd.ofPromise promise [] (Ok >> LoadedData) (Error >> LoadedData)
+  | LoadedData (Ok game) -> game |> setTexts |> Playing, Cmd.ofSub tick
+  | KeyPressed key ->
+    match model, key with
+    | Playing game, Letter key -> (game |> handleTyping (Some key) |> Playing), Cmd.none
+    | NotStarted, Enter -> model, Cmd.ofMsg (LoadData (1, 0., System.Guid.NewGuid().ToString(), UsualGame))
+    | _ -> model, Cmd.none
   | Tick ->
     match model with
     | Playing game ->
       match game.words with
-      | words when List.exists (fun x -> x.y > (1.)) words ->
-        EndFail game, Cmd.none
+      | words when List.exists (fun x ->
+          match x with
+          | VisibleWord w when w.coordinates.y > (1.) -> true
+          | _ -> false) words -> EndFail game, Cmd.none
       | _ ->
         let game' =
           game
-          |> handleTyping
+          |> handleTyping None
+          |> filterOutTypedWords
           |> move
-        Playing game', Cmd.ofSub tick
+          |> setTexts
+        let isSetTextSuccessful = 
+          game'.words
+          |> List.exists (fun w ->
+            match w with
+            | NotVisibleWord c when c.y > 0. -> true
+            | _ -> false)
+        match isSetTextSuccessful with
+        | true -> model, Cmd.ofMsg (LoadData (1, 0., game'.id, UsualGame))
+        | _ -> Playing game', Cmd.ofSub tick
     | _ -> model, Cmd.none
-  | StartGame (Error _) -> model, Cmd.none
+  | LoadedData (Error _) -> model, Cmd.none
   | GameStarted game -> game, Cmd.none
   | Finish gameState -> gameState, Cmd.none 
   | StoreScore gameReplay when gameReplay.score.value > 0. ->
@@ -311,7 +390,7 @@ let drawText (w, h) (x, y) text color =
 let drawScore (w, h) game =
   let passed = game.initialWordsCount - List.length game.words
   let total = game.initialWordsCount
-  let text = sprintf "%i/%i" passed total
+  let text = sprintf "%f" (game.koefStore |> List.last |> fst)
   let y = fontSize * 2.;
   let x = w - float(text.Length) * fontSize - fontSize * 5.
   do Win.drawText text blackColor font (x, y)
@@ -366,7 +445,7 @@ let startGameButton model gameType round text dispatch id className =
   button [ Id id;
            Class className;
            startButtonStyle
-           OnClick (fun _ -> dispatch (LoadGame (round, score, gameId, gameType)))]
+           OnClick (fun _ -> dispatch (LoadData (round, score, gameId, gameType)))]
          [str text]
 
 let getStartGameButtons model dispatch =
@@ -381,7 +460,18 @@ let getStartGameButtons model dispatch =
     [ startNormalGameButton startBtnId "button is-success" "Start"]
   | _ -> [ str "" ]
 
+let getVisibleWordsOnly =
+  List.filter(fun x ->
+    match x with
+    | VisibleWord _ -> true
+    | _ -> false)
+  >> List.map (fun x ->
+    match x with
+    | VisibleWord y -> y
+    | _ -> failwith "")
+
 let view (model : Game) (dispatch : Msg -> unit) =
+  Keyboard.registerKeyPressed (KeyPressed >> dispatch)
   let canvasView = str "" // TODO: canvas is rendered outside react element, take a look at react-canvas to use instead
   let w, h = Win.dimensions()
   let buttons = getStartGameButtons model dispatch
@@ -392,28 +482,18 @@ let view (model : Game) (dispatch : Msg -> unit) =
         div [buttonsContainerStyle] buttons]
   | Playing game ->
     match game.words with
-    | words when List.exists (fun x -> x.y > (1.)) words ->
-      do Keyboard.clear()
-      canvasView
+    | [] -> str ""
     | words ->
-      match words with
-      | [] -> str ""
-      | _ ->
-        printfn "drawing"
-        Win.clear()
-        List.iter (fun word ->
+      Win.clear()
+      words 
+        |> getVisibleWordsOnly
+        |> List.iter (fun word ->
           let fontColor = color word
           let text = displayText word
-          drawText (w, h) (word.x, word.y) text fontColor)
-          words
-        drawScore (w, h) game
-        canvasView
+          drawText (w, h) (word.coordinates.x, word.coordinates.y) text fontColor)
+      drawScore (w, h) game
+      canvasView
   | _ ->
     str ""
 
-document.addEventListener_keydown(fun e ->
-  let enter = 13.
-  if (e.keyCode = enter) then
-    let btn = document.getElementById(startBtnId)
-    btn.click()
-  )
+
